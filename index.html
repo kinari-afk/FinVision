@@ -49,7 +49,7 @@
 <body class="text-slate-800 bg-slate-50 min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="bg-indigo-500 p-2 rounded-lg text-white">
@@ -59,7 +59,15 @@
                     <div class="flex items-center gap-2">
                         <h1 class="font-extrabold text-xl tracking-tight text-white">FinVision</h1>
                         <span class="text-[10px] bg-indigo-700 text-indigo-200 font-medium px-2 py-0.5 rounded border border-indigo-600">決算ビジュアルアナライザー</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Presets -->
             <div class="flex items-center space-x-2 overflow-x-auto py-1">
+                <button id="btnLoadedPdf" onclick="loadUploadedPdfData()" class="hidden px-3 py-1.5 text-xs bg-rose-700 hover:bg-rose-600 text-white rounded-md transition flex items-center gap-1 border border-rose-500 font-bold whitespace-nowrap shadow-sm">
+                    <i class="fa-solid fa-file-pdf"></i> 解析済みPDFデータ表示
+                </button>
                 <button onclick="loadSampleData('kango')" class="px-3 py-1.5 text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-md transition flex items-center gap-1 border border-emerald-700 font-medium whitespace-nowrap">
                     <i class="fa-solid fa-user-nurse"></i> 訪問看護サンプル
                 </button>
@@ -81,57 +89,64 @@
                 <div>
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i>
-                        決算データの読み込み・分析と出力
+                        決算データの読み込み・手入力と分析
                     </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">PDF決算書の読み込み、手入力での編集、および診断レポート（PDF）の発行が可能です（単位：百万円）。</p>
+                    <p class="text-xs text-slate-500 mt-0.5">PDF決算書のアップロード、テキストの貼り付け、直接入力で数値を指定して瞬時にビジュアル化できます。</p>
                 </div>
                 
                 <!-- File Upload & Mode Buttons -->
                 <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <button onclick="exportPdfReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-sm">
+                    <button onclick="exportPdfReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-file-arrow-down text-indigo-200"></i>
-                        <span>PDFレポート作成・出力</span>
+                        <span>PDFレポート出力</span>
                     </button>
-                    <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-file-pdf"></i>
-                        <span>PDF解析取り込み</span>
+                        <span>PDFファイル読み込み</span>
                         <input type="file" id="pdfFileInput" accept="application/pdf" class="hidden" onchange="handlePdfUpload(event)">
                     </label>
-                    <button onclick="toggleEditModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-indigo-200">
+                    <button onclick="togglePasteModal()" class="bg-sky-50 hover:bg-sky-100 text-sky-800 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-sky-200">
+                        <i class="fa-solid fa-paste"></i>
+                        <span>決算書テキスト貼り付け</span>
+                    </button>
+                    <button onclick="toggleEditModal()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-amber-300">
                         <i class="fa-solid fa-pen-to-square"></i>
                         <span>数値の手入力・調整</span>
                     </button>
-                    <button onclick="toggleRawDataDrawer()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-slate-300">
+                    <button onclick="toggleRawDataDrawer()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-slate-300">
                         <i class="fa-solid fa-table-list"></i>
-                        <span>読み込み数値一覧</span>
+                        <span>数値一覧・照合</span>
                     </button>
                 </div>
             </div>
 
             <!-- Analysis Header Alert / PDF Status -->
-            <div id="pdfStatusAlert" class="hidden p-3 rounded-lg text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-between mb-2">
-                <span id="pdfStatusText"><i class="fa-solid fa-spinner fa-spin mr-2"></i> PDFを解析中...</span>
-                <button onclick="closePdfStatus()" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-xmark"></i></button>
+            <div id="pdfStatusAlert" class="hidden p-3 rounded-lg text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 mb-3">
+                <div class="flex items-center justify-between">
+                    <span id="pdfStatusText"><i class="fa-solid fa-spinner fa-spin mr-2"></i> PDFを解析中...</span>
+                    <button onclick="closePdfStatus()" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="pdfParsingLogs" class="mt-2 pt-2 border-t border-indigo-100 text-[11px] font-mono text-indigo-900 hidden"></div>
             </div>
 
             <!-- Dynamic Company Title Header -->
             <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-wrap justify-between items-center gap-4">
                 <div>
-                    <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">対象企業 / モード</span>
-                    <h3 id="displayCompanyName" class="text-xl font-bold text-slate-800">サンプル株式会社（IT・SaaSモデル）</h3>
+                    <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">対象企業 / 業界モデル</span>
+                    <h3 id="displayCompanyName" class="text-xl font-bold text-slate-800">あおぞら訪問看護ステーション（医療・ヘルスケアモデル）</h3>
                 </div>
                 <div class="flex gap-6 text-sm">
                     <div>
                         <span class="text-xs text-slate-500 block">総資産</span>
-                        <span id="displayTotalAssets" class="font-bold text-slate-800 text-base">¥10,000M</span>
+                        <span id="displayTotalAssets" class="font-bold text-slate-800 text-base">¥250M</span>
                     </div>
                     <div>
                         <span class="text-xs text-slate-500 block">売上高</span>
-                        <span id="displayRevenue" class="font-bold text-slate-800 text-base">¥8,000M</span>
+                        <span id="displayRevenue" class="font-bold text-slate-800 text-base">¥500M</span>
                     </div>
                     <div>
                         <span class="text-xs text-slate-500 block">営業利益</span>
-                        <span id="displayOperatingProfit" class="font-bold text-emerald-600 text-base">¥1,200M</span>
+                        <span id="displayOperatingProfit" class="font-bold text-emerald-600 text-base">¥70M</span>
                     </div>
                     <div>
                         <span class="text-xs text-slate-500 block">自己資本比率</span>
@@ -147,7 +162,12 @@
                         <i class="fa-solid fa-square-check text-indigo-600"></i>
                         読み込み数値データ照合テーブル（抽出・入力項目一覧）
                     </h4>
-                    <span class="text-xs text-slate-500">※単位: 百万円 (構成比: 全体に対する割合)</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleEditModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded font-bold shadow-sm">
+                            <i class="fa-solid fa-pen-to-square mr-1"></i>この数値を修正・直接入力する
+                        </button>
+                        <span class="text-xs text-slate-500">※単位: 百万円</span>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,25 +236,25 @@
                             <div id="boxCurrentAssets" class="bs-box bg-sky-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-bolt text-sky-200 mr-1"></i>流動資産</span>
-                                    <span id="valCurrentAssets">¥5,000M</span>
+                                    <span id="valCurrentAssets">¥220M</span>
                                 </div>
                                 <div class="text-[11px] text-sky-100 space-y-0.5 z-10">
-                                    <div class="flex justify-between"><span>当座資産:</span> <span id="valCashEquiv">¥3,500M</span></div>
-                                    <div class="flex justify-between"><span>棚卸資産:</span> <span id="valInventory">¥1,500M</span></div>
+                                    <div class="flex justify-between"><span>当座資産:</span> <span id="valCashEquiv">¥210M</span></div>
+                                    <div class="flex justify-between"><span>棚卸資産:</span> <span id="valInventory">¥10M</span></div>
                                 </div>
-                                <span class="text-[10px] text-sky-200 self-end font-semibold" id="pctCurrentAssets">50.0%</span>
+                                <span class="text-[10px] text-sky-200 self-end font-semibold" id="pctCurrentAssets">88.0%</span>
                             </div>
 
                             <!-- Non-Current / Fixed Assets (固定資産) -->
                             <div id="boxFixedAssets" class="bs-box bg-indigo-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-building text-indigo-300 mr-1"></i>固定資産</span>
-                                    <span id="valFixedAssets">¥5,000M</span>
+                                    <span id="valFixedAssets">¥30M</span>
                                 </div>
                                 <div class="text-[11px] text-indigo-100 space-y-0.5">
                                     <div class="flex justify-between"><span>有形・無形・投資等</span></div>
                                 </div>
-                                <span class="text-[10px] text-indigo-200 self-end font-semibold" id="pctFixedAssets">50.0%</span>
+                                <span class="text-[10px] text-indigo-200 self-end font-semibold" id="pctFixedAssets">12.0%</span>
                             </div>
                         </div>
 
@@ -244,25 +264,25 @@
                             <div id="boxCurrentLiabilities" class="bs-box bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 25%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-clock text-amber-200 mr-1"></i>流動負債</span>
-                                    <span id="valCurrentLiabilities">¥2,500M</span>
+                                    <span id="valCurrentLiabilities">¥80M</span>
                                 </div>
-                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="pctCurrentLiabilities">25.0%</span>
+                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="pctCurrentLiabilities">32.0%</span>
                             </div>
 
                             <!-- Fixed Liabilities (固定負債) -->
                             <div id="boxFixedLiabilities" class="bs-box bg-orange-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 15%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-land-mine-on-surface text-orange-200 mr-1"></i>固定負債</span>
-                                    <span id="valFixedLiabilities">¥1,500M</span>
+                                    <span id="valFixedLiabilities">¥20M</span>
                                 </div>
-                                <span class="text-[10px] text-orange-100 self-end font-semibold" id="pctFixedLiabilities">15.0%</span>
+                                <span class="text-[10px] text-orange-100 self-end font-semibold" id="pctFixedLiabilities">8.0%</span>
                             </div>
 
                             <!-- Net Assets / Equity (純資産) -->
                             <div id="boxEquity" class="bs-box bg-emerald-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 60%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-shield-halved text-emerald-200 mr-1"></i>純資産 (自己資本)</span>
-                                    <span id="valEquity">¥6,000M</span>
+                                    <span id="valEquity">¥150M</span>
                                 </div>
                                 <div class="text-[11px] text-emerald-100">
                                     <span class="block">返済義務のない自己資金</span>
@@ -307,10 +327,10 @@
                                 <div>
                                     <div class="font-bold flex justify-between items-center border-b border-indigo-500/50 pb-1.5 mb-2">
                                         <span><i class="fa-solid fa-sack-dollar text-indigo-200 mr-1"></i>総売上高</span>
-                                        <span id="plBlockValRev" class="text-sm font-extrabold">¥8,000M</span>
+                                        <span id="plBlockValRev" class="text-sm font-extrabold">¥500M</span>
                                     </div>
                                     <p class="text-[11px] text-indigo-100 leading-relaxed">
-                                        すべての収益の源泉流。右側の各コスト・費用が順に差し引かれ、最終的な利益（当期純利益）として残ります。
+                                        すべての収益の源泉。右側の各コスト・費用が順に差し引かれ、最終的な利益（当期純利益）として残ります。
                                     </p>
                                 </div>
                                 <div class="mt-auto">
@@ -319,42 +339,42 @@
                             </div>
                         </div>
 
-                        <!-- Right: Cost Allocation & Net Profit Blocks (B/S Style Breakdown) -->
+                        <!-- Right: Cost Allocation & Net Profit Blocks -->
                         <div class="flex flex-col h-full gap-1">
                             <!-- Cost of Sales Box -->
-                            <div id="plBlockCost" class="pl-box bg-rose-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 40%;">
+                            <div id="plBlockCost" class="pl-box bg-rose-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 64%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-boxes-packing text-rose-200 mr-1"></i>売上原価</span>
-                                    <span id="plBlockValCost">¥3,200M</span>
+                                    <span id="plBlockValCost">¥320M</span>
                                 </div>
-                                <span class="text-[10px] text-rose-100 self-end font-semibold" id="plBlockPctCost">40.0%</span>
+                                <span class="text-[10px] text-rose-100 self-end font-semibold" id="plBlockPctCost">64.0%</span>
                             </div>
 
                             <!-- SG&A Expenses Box -->
-                            <div id="plBlockSga" class="pl-box bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 45%;">
+                            <div id="plBlockSga" class="pl-box bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 22%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-bullhorn text-amber-200 mr-1"></i>販管費</span>
-                                    <span id="plBlockValSga">¥3,600M</span>
+                                    <span id="plBlockValSga">¥110M</span>
                                 </div>
-                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="plBlockPctSga">45.0%</span>
+                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="plBlockPctSga">22.0%</span>
                             </div>
 
                             <!-- Non-Op / Taxes Box -->
-                            <div id="plBlockTaxOther" class="pl-box bg-slate-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 5%;">
+                            <div id="plBlockTaxOther" class="pl-box bg-slate-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 4%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-receipt text-slate-300 mr-1"></i>税・その他費用</span>
-                                    <span id="plBlockValTaxOther">¥360M</span>
+                                    <span id="plBlockValTaxOther">¥17M</span>
                                 </div>
-                                <span class="text-[10px] text-slate-200 self-end font-semibold" id="plBlockPctTaxOther">4.5%</span>
+                                <span class="text-[10px] text-slate-200 self-end font-semibold" id="plBlockPctTaxOther">3.4%</span>
                             </div>
 
                             <!-- Net Profit (Bottom line) Box -->
                             <div id="plBlockNet" class="pl-box bg-emerald-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 10%;">
                                 <div class="font-bold flex justify-between items-center">
                                     <span><i class="fa-solid fa-piggy-bank text-emerald-200 mr-1"></i>当期純利益</span>
-                                    <span id="plBlockValNet">¥840M</span>
+                                    <span id="plBlockValNet">¥53M</span>
                                 </div>
-                                <span class="text-[10px] text-emerald-200 self-end font-semibold" id="plBlockPctNet">10.5%</span>
+                                <span class="text-[10px] text-emerald-200 self-end font-semibold" id="plBlockPctNet">10.6%</span>
                             </div>
                         </div>
                     </div>
@@ -367,9 +387,9 @@
 
                 <!-- P/L Quick Summary Footer -->
                 <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center bg-slate-50 p-2.5 rounded-lg">
-                    <div>売上高営業利益率: <span id="plOpProfitMargin" class="font-bold text-indigo-600">15.0%</span></div>
-                    <div>原価率: <span id="plCostRatio" class="font-bold text-slate-700">40.0%</span></div>
-                    <div>販管比率: <span id="plSgaRatio" class="font-bold text-slate-700">45.0%</span></div>
+                    <div>売上高営業利益率: <span id="plOpProfitMargin" class="font-bold text-indigo-600">14.0%</span></div>
+                    <div>原価率: <span id="plCostRatio" class="font-bold text-slate-700">64.0%</span></div>
+                    <div>販管比率: <span id="plSgaRatio" class="font-bold text-slate-700">22.0%</span></div>
                 </div>
             </div>
         </div>
@@ -394,25 +414,25 @@
                         </div>
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="流動資産 ÷ 流動負債（目安: 150%以上）">流動比率</span>
-                                <span id="valRatioCurrent" class="font-bold text-slate-800 text-sm">200.0%</span>
+                                <span class="text-slate-600" title="流動資産 ÷ 流動負債">流動比率</span>
+                                <span id="valRatioCurrent" class="font-bold text-slate-800 text-sm">275.0%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="当座資産 ÷ 流動負債（目安: 100%以上）">当座比率</span>
-                                <span id="valRatioQuick" class="font-bold text-slate-800 text-sm">140.0%</span>
+                                <span class="text-slate-600" title="当座資産 ÷ 流動負債">当座比率</span>
+                                <span id="valRatioQuick" class="font-bold text-slate-800 text-sm">262.5%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="自己資本 ÷ 総資産（目安: 40%以上）">自己資本比率</span>
+                                <span class="text-slate-600" title="自己資本 ÷ 総資産">自己資本比率</span>
                                 <span id="valRatioEquity" class="font-bold text-slate-800 text-sm">60.0%</span>
                             </li>
                             <li class="flex justify-between items-center">
-                                <span class="text-slate-600" title="固定資産 ÷ 自己資本（目安: 100%以下）">固定比率</span>
-                                <span id="valRatioFixed" class="font-bold text-slate-800 text-sm">83.3%</span>
+                                <span class="text-slate-600" title="固定資産 ÷ 自己資本">固定比率</span>
+                                <span id="valRatioFixed" class="font-bold text-slate-800 text-sm">20.0%</span>
                             </li>
                         </ul>
                     </div>
                     <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descSafety">
-                        流動比率・自己資本比率ともに非常に高水準です。短期・長期の支払い能力が十分に確保されています。
+                        流動比率・自己資本比率ともに高水準です。
                     </div>
                 </div>
 
@@ -428,28 +448,28 @@
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                                 <span class="text-slate-600">売上高営業利益率</span>
-                                <span id="valRatioOpMargin" class="font-bold text-slate-800 text-sm">15.0%</span>
+                                <span id="valRatioOpMargin" class="font-bold text-slate-800 text-sm">14.0%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                                 <span class="text-slate-600" title="当期純利益 ÷ 総資産">ROA (総資産利益率)</span>
-                                <span id="valRatioROA" class="font-bold text-slate-800 text-sm">8.4%</span>
+                                <span id="valRatioROA" class="font-bold text-slate-800 text-sm">21.2%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                                 <span class="text-slate-600" title="当期純利益 ÷ 自己資本">ROE (自己資本利益率)</span>
-                                <span id="valRatioROE" class="font-bold text-slate-800 text-sm">14.0%</span>
+                                <span id="valRatioROE" class="font-bold text-slate-800 text-sm">35.3%</span>
                             </li>
                             <li class="flex justify-between items-center">
                                 <span class="text-slate-600">売上高当期純利益率</span>
-                                <span id="valRatioNetMargin" class="font-bold text-slate-800 text-sm">10.5%</span>
+                                <span id="valRatioNetMargin" class="font-bold text-slate-800 text-sm">10.6%</span>
                             </li>
                         </ul>
                     </div>
                     <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descProfitability">
-                        高い営業利益率を維持しており、本業での稼ぐ力が非常に強力です。
+                        高い営業利益率を維持しており強力です。
                     </div>
                 </div>
 
-                <!-- 3. Efficiency & Turnover Card -->
+                <!-- 3. Efficiency Card -->
                 <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-3">
@@ -461,24 +481,24 @@
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                                 <span class="text-slate-600" title="売上高 ÷ 総資産（回）">総資産回転率</span>
-                                <span id="valRatioAssetTurnover" class="font-bold text-slate-800 text-sm">0.80回</span>
+                                <span id="valRatioAssetTurnover" class="font-bold text-slate-800 text-sm">2.00回</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                                 <span class="text-slate-600" title="棚卸資産 ÷ (売上高/12)（ヶ月）">棚卸資産回転期間</span>
-                                <span id="valRatioInvTurnover" class="font-bold text-slate-800 text-sm">2.25ヶ月</span>
+                                <span id="valRatioInvTurnover" class="font-bold text-slate-800 text-sm">0.24ヶ月</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="財務レバレッジ (総資産 ÷ 自己資本)">財務レバレッジ</span>
+                                <span class="text-slate-600">財務レバレッジ</span>
                                 <span id="valRatioFinLeverage" class="font-bold text-slate-800 text-sm">1.67倍</span>
                             </li>
                             <li class="flex justify-between items-center">
-                                <span class="text-slate-600" title="ROE = 売上高純利益率 × 総資産回転率 × 財務レバレッジ">デュポン分解(ROE)</span>
-                                <span id="valRatioDupont" class="font-bold text-indigo-600 text-xs">10.5% × 0.8 × 1.67</span>
+                                <span class="text-slate-600">デュポン分解(ROE)</span>
+                                <span id="valRatioDupont" class="font-bold text-indigo-600 text-xs">10.6% × 2.0 × 1.67</span>
                             </li>
                         </ul>
                     </div>
                     <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descEfficiency">
-                        総資産回転率は0.8回です。保有資産に対する売上創出の効率をさらに高める余地があります。
+                        総資産回転率は良好です。
                     </div>
                 </div>
 
@@ -491,7 +511,7 @@
                 <i class="fa-solid fa-sliders text-indigo-600"></i>
                 経営改善・感度シミュレーション
             </h3>
-            <p class="text-xs text-slate-500 mb-6">売上高の変動や原価率の改善が、営業利益およびROEにどのような変化を与えるかリアルタイムで試算します。</p>
+            <p class="text-xs text-slate-500 mb-6">売上高の変動や原価率の改善が、営業利益およびROEにどのような変化を与えるか試算します。</p>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                 <div class="space-y-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
@@ -520,13 +540,13 @@
                 <div class="grid grid-cols-2 gap-4 text-center">
                     <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl">
                         <span class="text-xs font-semibold text-indigo-700 block mb-1">シミュレーション後の営業利益</span>
-                        <div id="simOperatingProfit" class="text-2xl font-bold text-indigo-900">¥1,200M</div>
+                        <div id="simOperatingProfit" class="text-2xl font-bold text-indigo-900">¥70M</div>
                         <span id="simOpDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
                     </div>
 
                     <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
                         <span class="text-xs font-semibold text-emerald-700 block mb-1">シミュレーション後のROE</span>
-                        <div id="simROE" class="text-2xl font-bold text-emerald-900">14.0%</div>
+                        <div id="simROE" class="text-2xl font-bold text-emerald-900">35.3%</div>
                         <span id="simROEDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
                     </div>
                 </div>
@@ -535,7 +555,160 @@
 
     </main>
 
-    <!-- Manual Data Entry Modal -->
+    <!-- Manual Data Entry Modal (editModal) -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-amber-600"></i>
+                    財務数値の手入力・直接調整
+                </h3>
+                <button onclick="toggleEditModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form onsubmit="saveManualData(event)" class="space-y-4 text-xs">
+                <!-- Company Name & Unit Selection -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div class="md:col-span-2">
+                        <label class="font-bold text-slate-700 block mb-1">対象企業名 / 組織名</label>
+                        <input type="text" id="inputCompanyName" required class="w-full border border-slate-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">入力単位（換算）</label>
+                        <select id="inputUnit" onchange="convertUnitNotice()" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="1">百万円 (そのままとする)</option>
+                            <option value="1000">千円 (百万円に自動変換)</option>
+                            <option value="1000000">円 (百万円に自動変換)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p id="unitNotice" class="text-[11px] text-amber-700 font-medium hidden"><i class="fa-solid fa-info-circle mr-1"></i>選択した単位（千円または円）で入力後、保存時に自動で「百万円」換算に計算されます。</p>
+
+                <!-- B/S Data Inputs -->
+                <div class="border border-sky-200 rounded-lg p-3 bg-sky-50/50">
+                    <h4 class="font-bold text-sky-900 mb-2 border-b border-sky-200 pb-1 flex justify-between items-center">
+                        <span><i class="fa-solid fa-scale-balanced mr-1"></i> 貸借対照表 (B/S) 数値</span>
+                        <span id="bsAutoCalcInfo" class="text-[11px] text-sky-700 font-normal"></span>
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <span class="font-bold text-sky-800 block mb-1 border-b text-[11px]">【 資産の部 】</span>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-slate-600">当座資産（現金預金・売掛金等）</label>
+                                    <input type="number" step="any" id="inputCashEquiv" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-600">棚卸資産（商品・製品・資材等）</label>
+                                    <input type="number" step="any" id="inputInventory" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-600">固定資産（設備・不動産・投資等）</label>
+                                    <input type="number" step="any" id="inputFixedAssets" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="font-bold text-sky-800 block mb-1 border-b text-[11px]">【 負債・純資産の部 】</span>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-slate-600">流動負債（買掛金・短期借入等）</label>
+                                    <input type="number" step="any" id="inputCurrentLiabilities" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-600">固定負債（長期借入等）</label>
+                                    <input type="number" step="any" id="inputFixedLiabilities" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-600 font-semibold text-emerald-800">純資産（自己資本・利益剰余金）</label>
+                                    <input type="number" step="any" id="inputEquity" required class="w-full border border-emerald-400 bg-emerald-50/50 rounded px-2 py-1 font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P/L Data Inputs -->
+                <div class="border border-emerald-200 rounded-lg p-3 bg-emerald-50/50">
+                    <h4 class="font-bold text-emerald-900 mb-2 border-b border-emerald-200 pb-1">
+                        <i class="fa-solid fa-file-invoice-dollar mr-1"></i> 損益計算書 (P/L) 数値
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-slate-700 font-bold">売上高（総収益）</label>
+                                <input type="number" step="any" id="inputRevenue" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600">売上原価</label>
+                                <input type="number" step="any" id="inputCostOfSales" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600">販売費及び一般管理費 (販管費)</label>
+                                <input type="number" step="any" id="inputSGA" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-slate-600">営業外収支 (営業外収益 - 費用)</label>
+                                <input type="number" step="any" id="inputNonOpIncome" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600">特別損益 (特別利益 - 損失)</label>
+                                <input type="number" step="any" id="inputExtraordinary" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600">法人税等コスト</label>
+                                <input type="number" step="any" id="inputTaxes" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="toggleEditModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium">キャンセル</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md">
+                        <i class="fa-solid fa-check mr-1"></i> この数値で反映・再計算
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Direct Text Paste Modal for copy-pasted PDF text -->
+    <div id="pasteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-paste text-sky-600"></i>
+                    決算書テキストの直接貼り付け＆自動解析
+                </h3>
+                <button onclick="togglePasteModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-600">PDFからコピーしたテキストや、決算書・短信の数値テキストをそのまま枠内に貼り付けて「解析」を押してください。</p>
+
+            <div>
+                <textarea id="pasteTextInput" rows="8" placeholder="ここに決算書テキストを貼り付けてください（例: 売上高 500,000千円 売上原価 320,000千円 資産合計 250,000千円 ...）" class="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="fillSampleTextForPaste()" class="text-xs text-indigo-600 hover:underline">
+                    <i class="fa-solid fa-lightbulb"></i> テキスト例を試す
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="togglePasteModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium">閉じる</button>
+                    <button type="button" onclick="parsePastedText()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-md">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> テキスト解析を実行
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden PDF Report Modal / Template for PDF Export -->
     <div id="pdfExportModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto">
@@ -675,36 +848,38 @@
     </div>
 
     <script>
-        // PDF.js worker setting
+        // PDF.js worker setup
         if (typeof pdfjsLib !== 'undefined') {
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         }
 
-        // Global State Object
+        // Global State Object (Standard unit is Million Yen - 百万円)
         let financialData = {
-            companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケア）',
+            companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
             bs: {
-                cashEquiv: 210,     // 当座資産 (現金・診療/介護報酬売掛金)
-                inventory: 10,      // 棚卸資産 (衛生・医療資材)
-                fixedAssets: 30,    // 固定資産 (訪問用車両・事務所設備等)
+                cashEquiv: 210,     // 当座資産
+                inventory: 10,      // 棚卸資産
+                fixedAssets: 30,    // 固定資産
                 currentLiabilities: 80, // 流動負債
                 fixedLiabilities: 20,   // 固定負債
                 equity: 150         // 純資産
             },
             pl: {
-                revenue: 500,       // 売上高 (訪問看護・リハビリ収益)
-                costOfSales: 320,   // 売上原価 (看護師・PT・OT人件費等)
-                sga: 110,           // 販管費 (管理事務・採用費・広報宣伝費)
-                nonOpIncome: 5,     // 営業外損益 (助成金等)
+                revenue: 500,       // 売上高
+                costOfSales: 320,   // 売上原価
+                sga: 110,           // 販管費
+                nonOpIncome: 5,     // 営業外損益
                 extraordinary: 0,   // 特別損益
                 taxes: 22           // 税金等
             }
         };
 
-        // Current P/L View Mode ('block' or 'waterfall')
+        // Cache last extracted PDF data
+        let uploadedPdfData = null;
         let plViewMode = 'block';
+        let plChart = null;
 
-        // Pre-defined sample datasets including 訪問看護 and 買取大吉
+        // Sample Datasets
         const samplePresets = {
             kango: {
                 companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
@@ -720,27 +895,15 @@
                 companyName: 'テックイノベーションズ（SaaS・高収益モデル）',
                 bs: { cashEquiv: 6000, inventory: 200, fixedAssets: 1800, currentLiabilities: 1500, fixedLiabilities: 500, equity: 6000 },
                 pl: { revenue: 10000, costOfSales: 2000, sga: 5500, nonOpIncome: 50, extraordinary: 0, taxes: 750 }
-            },
-            manufacture: {
-                companyName: 'グローバルマニュファクチャリング（製造業モデル）',
-                bs: { cashEquiv: 4000, inventory: 4000, fixedAssets: 12000, currentLiabilities: 6000, fixedLiabilities: 5000, equity: 9000 },
-                pl: { revenue: 20000, costOfSales: 14000, sga: 4000, nonOpIncome: -100, extraordinary: -200, taxes: 500 }
-            },
-            retail: {
-                companyName: 'フレッシュリテールチェーン（小売・流通業モデル）',
-                bs: { cashEquiv: 2000, inventory: 3000, fixedAssets: 5000, currentLiabilities: 4500, fixedLiabilities: 2500, equity: 3000 },
-                pl: { revenue: 15000, costOfSales: 10500, sga: 3700, nonOpIncome: -20, extraordinary: 50, taxes: 250 }
             }
         };
-
-        let plChart = null;
 
         window.onload = function() {
             initWaterfallChart();
             updateAllVisuals();
         };
 
-        // Load Preset Data
+        // Load Preset
         function loadSampleData(key) {
             if (samplePresets[key]) {
                 financialData = JSON.parse(JSON.stringify(samplePresets[key]));
@@ -749,7 +912,14 @@
             }
         }
 
-        // Toggle P/L View Mode (Block vs Waterfall Chart)
+        function loadUploadedPdfData() {
+            if (uploadedPdfData) {
+                financialData = JSON.parse(JSON.stringify(uploadedPdfData));
+                resetSimulation();
+                updateAllVisuals();
+            }
+        }
+
         function switchPlMode(mode) {
             plViewMode = mode;
             const btnBlock = document.getElementById('btnPlModeBlock');
@@ -772,51 +942,75 @@
         }
 
         function toggleRawDataDrawer() {
-            const drawer = document.getElementById('rawDataDrawer');
-            drawer.classList.toggle('hidden');
+            document.getElementById('rawDataDrawer').classList.toggle('hidden');
         }
 
+        function togglePasteModal() {
+            document.getElementById('pasteModal').classList.toggle('hidden');
+        }
+
+        function fillSampleTextForPaste() {
+            const sampleText = `決算報告書（自 令和5年4月1日 至 令和6年3月31日）
+単位：千円
+【 貸借対照表 】
+現金及び預金: 1,500,000
+棚卸資産: 300,000
+固定資産合計: 800,000
+資産合計: 2,600,000
+流動負債合計: 600,000
+固定負債合計: 400,000
+純資産合計: 1,600,000
+
+【 損益計算書 】
+売上高: 4,500,000
+売上原価: 2,700,000
+販売費及び一般管理費: 1,100,000
+営業利益: 700,000
+法人税、住民税及び事業税: 210,000`;
+            document.getElementById('pasteTextInput').value = sampleText;
+        }
+
+        // Core Financial Calculator & Visual Render
         function updateAllVisuals() {
             const bs = financialData.bs;
             const pl = financialData.pl;
 
             // Computed Values
-            const currentAssets = bs.cashEquiv + bs.inventory;
-            const totalAssets = currentAssets + bs.fixedAssets;
-            const totalLiabilities = bs.currentLiabilities + bs.fixedLiabilities;
-            const totalLiabAndEquity = totalLiabilities + bs.equity;
+            const currentAssets = (bs.cashEquiv || 0) + (bs.inventory || 0);
+            const totalAssets = currentAssets + (bs.fixedAssets || 0);
+            const totalLiabilities = (bs.currentLiabilities || 0) + (bs.fixedLiabilities || 0);
+            const totalLiabAndEquity = totalLiabilities + (bs.equity || 0);
 
-            const grossProfit = pl.revenue - pl.costOfSales;
-            const operatingProfit = grossProfit - pl.sga;
-            const recurringProfit = operatingProfit + pl.nonOpIncome;
-            const netProfitBeforeTax = recurringProfit + pl.extraordinary;
-            const netProfit = netProfitBeforeTax - pl.taxes;
+            const grossProfit = (pl.revenue || 0) - (pl.costOfSales || 0);
+            const operatingProfit = grossProfit - (pl.sga || 0);
+            const recurringProfit = operatingProfit + (pl.nonOpIncome || 0);
+            const netProfitBeforeTax = recurringProfit + (pl.extraordinary || 0);
+            const netProfit = netProfitBeforeTax - (pl.taxes || 0);
 
-            // Update Header Values
-            document.getElementById('displayCompanyName').textContent = financialData.companyName;
-            document.getElementById('displayTotalAssets').textContent = `¥${totalAssets.toLocaleString()}M`;
-            document.getElementById('displayRevenue').textContent = `¥${pl.revenue.toLocaleString()}M`;
-            document.getElementById('displayOperatingProfit').textContent = `¥${operatingProfit.toLocaleString()}M`;
+            // Header Displays
+            document.getElementById('displayCompanyName').textContent = financialData.companyName || '未設定企業';
+            document.getElementById('displayTotalAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
+            document.getElementById('displayRevenue').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
+            document.getElementById('displayOperatingProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
             
-            const equityRatio = (bs.equity / totalAssets) * 100;
+            const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
             document.getElementById('displayEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
 
-            // --- 1. Update B/S Visual Box Heights & Text ---
-            document.getElementById('valCurrentAssets').textContent = `¥${currentAssets.toLocaleString()}M`;
-            document.getElementById('valCashEquiv').textContent = `¥${bs.cashEquiv.toLocaleString()}M`;
-            document.getElementById('valInventory').textContent = `¥${bs.inventory.toLocaleString()}M`;
-            document.getElementById('valFixedAssets').textContent = `¥${bs.fixedAssets.toLocaleString()}M`;
+            // --- B/S Visual Diagram ---
+            document.getElementById('valCurrentAssets').textContent = `¥${Math.round(currentAssets).toLocaleString()}M`;
+            document.getElementById('valCashEquiv').textContent = `¥${Math.round(bs.cashEquiv).toLocaleString()}M`;
+            document.getElementById('valInventory').textContent = `¥${Math.round(bs.inventory).toLocaleString()}M`;
+            document.getElementById('valFixedAssets').textContent = `¥${Math.round(bs.fixedAssets).toLocaleString()}M`;
 
-            document.getElementById('valCurrentLiabilities').textContent = `¥${bs.currentLiabilities.toLocaleString()}M`;
-            document.getElementById('valFixedLiabilities').textContent = `¥${bs.fixedLiabilities.toLocaleString()}M`;
-            document.getElementById('valEquity').textContent = `¥${bs.equity.toLocaleString()}M`;
+            document.getElementById('valCurrentLiabilities').textContent = `¥${Math.round(bs.currentLiabilities).toLocaleString()}M`;
+            document.getElementById('valFixedLiabilities').textContent = `¥${Math.round(bs.fixedLiabilities).toLocaleString()}M`;
+            document.getElementById('valEquity').textContent = `¥${Math.round(bs.equity).toLocaleString()}M`;
 
-            // Percentage calculation
-            const pctCA = ((currentAssets / totalAssets) * 100).toFixed(1);
-            const pctFA = ((bs.fixedAssets / totalAssets) * 100).toFixed(1);
-            const pctCL = ((bs.currentLiabilities / totalAssets) * 100).toFixed(1);
-            const pctFL = ((bs.fixedLiabilities / totalAssets) * 100).toFixed(1);
-            const pctEq = ((bs.equity / totalAssets) * 100).toFixed(1);
+            const pctCA = totalAssets > 0 ? ((currentAssets / totalAssets) * 100).toFixed(1) : 0;
+            const pctFA = totalAssets > 0 ? ((bs.fixedAssets / totalAssets) * 100).toFixed(1) : 0;
+            const pctCL = totalAssets > 0 ? ((bs.currentLiabilities / totalAssets) * 100).toFixed(1) : 0;
+            const pctFL = totalAssets > 0 ? ((bs.fixedLiabilities / totalAssets) * 100).toFixed(1) : 0;
+            const pctEq = totalAssets > 0 ? ((bs.equity / totalAssets) * 100).toFixed(1) : 0;
 
             document.getElementById('pctCurrentAssets').textContent = `${pctCA}%`;
             document.getElementById('pctFixedAssets').textContent = `${pctFA}%`;
@@ -824,123 +1018,114 @@
             document.getElementById('pctFixedLiabilities').textContent = `${pctFL}%`;
             document.getElementById('pctEquity').textContent = `${pctEq}%`;
 
-            // Dynamic Box Heights
-            document.getElementById('boxCurrentAssets').style.height = `${pctCA}%`;
-            document.getElementById('boxFixedAssets').style.height = `${pctFA}%`;
-            document.getElementById('boxCurrentLiabilities').style.height = `${pctCL}%`;
-            document.getElementById('boxFixedLiabilities').style.height = `${pctFL}%`;
-            document.getElementById('boxEquity').style.height = `${pctEq}%`;
+            document.getElementById('boxCurrentAssets').style.height = `${Math.max(5, pctCA)}%`;
+            document.getElementById('boxFixedAssets').style.height = `${Math.max(5, pctFA)}%`;
+            document.getElementById('boxCurrentLiabilities').style.height = `${Math.max(5, pctCL)}%`;
+            document.getElementById('boxFixedLiabilities').style.height = `${Math.max(5, pctFL)}%`;
+            document.getElementById('boxEquity').style.height = `${Math.max(5, pctEq)}%`;
 
-            // B/S Balance Check
+            // Balance Check
             const bsCheckEl = document.getElementById('bsBalanceCheck');
             if (Math.abs(totalAssets - totalLiabAndEquity) < 1) {
                 bsCheckEl.className = "font-bold text-emerald-600";
-                bsCheckEl.innerHTML = `<i class="fa-solid fa-check-circle"></i> 一致 (資産: ¥${totalAssets.toLocaleString()}M)`;
+                bsCheckEl.innerHTML = `<i class="fa-solid fa-check-circle"></i> 一致 (総額: ¥${Math.round(totalAssets).toLocaleString()}M)`;
             } else {
                 bsCheckEl.className = "font-bold text-rose-600";
-                bsCheckEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 貸借不一致 (差額: ¥${(totalAssets - totalLiabAndEquity).toLocaleString()}M)`;
+                bsCheckEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 貸借不一致 (差額: ¥${Math.round(totalAssets - totalLiabAndEquity).toLocaleString()}M)`;
             }
 
-            // --- 2. Update P/L Views (Block & Waterfall) ---
-            // A. Update P/L Block Diagram Box Heights & Text
-            const pctPlCost = Math.max(2, (pl.costOfSales / pl.revenue) * 100);
-            const pctPlSga = Math.max(2, (pl.sga / pl.revenue) * 100);
-            const nonOpTaxCost = Math.max(0, (pl.revenue - grossProfit) + pl.taxes - (pl.nonOpIncome + pl.extraordinary));
+            // --- P/L Visual Diagram ---
+            const rev = Math.max(1, pl.revenue);
+            const pctPlCost = Math.max(2, (pl.costOfSales / rev) * 100);
+            const pctPlSga = Math.max(2, (pl.sga / rev) * 100);
             const otherCostVal = Math.max(0, pl.taxes + (pl.nonOpIncome < 0 ? Math.abs(pl.nonOpIncome) : 0));
-            const pctPlOther = Math.max(2, (otherCostVal / pl.revenue) * 100);
-            const pctPlNet = Math.max(2, (netProfit / pl.revenue) * 100);
+            const pctPlOther = Math.max(2, (otherCostVal / rev) * 100);
+            const pctPlNet = Math.max(2, (netProfit / rev) * 100);
 
-            document.getElementById('plBlockValRev').textContent = `¥${pl.revenue.toLocaleString()}M`;
-            document.getElementById('plBlockValCost').textContent = `¥${pl.costOfSales.toLocaleString()}M`;
-            document.getElementById('plBlockPctCost').textContent = `${((pl.costOfSales / pl.revenue) * 100).toFixed(1)}%`;
+            document.getElementById('plBlockValRev').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
+            document.getElementById('plBlockValCost').textContent = `¥${Math.round(pl.costOfSales).toLocaleString()}M`;
+            document.getElementById('plBlockPctCost').textContent = `${((pl.costOfSales / rev) * 100).toFixed(1)}%`;
             document.getElementById('plBlockCost').style.height = `${pctPlCost}%`;
 
-            document.getElementById('plBlockValSga').textContent = `¥${pl.sga.toLocaleString()}M`;
-            document.getElementById('plBlockPctSga').textContent = `${((pl.sga / pl.revenue) * 100).toFixed(1)}%`;
+            document.getElementById('plBlockValSga').textContent = `¥${Math.round(pl.sga).toLocaleString()}M`;
+            document.getElementById('plBlockPctSga').textContent = `${((pl.sga / rev) * 100).toFixed(1)}%`;
             document.getElementById('plBlockSga').style.height = `${pctPlSga}%`;
 
-            document.getElementById('plBlockValTaxOther').textContent = `¥${otherCostVal.toLocaleString()}M`;
-            document.getElementById('plBlockPctTaxOther').textContent = `${((otherCostVal / pl.revenue) * 100).toFixed(1)}%`;
+            document.getElementById('plBlockValTaxOther').textContent = `¥${Math.round(otherCostVal).toLocaleString()}M`;
+            document.getElementById('plBlockPctTaxOther').textContent = `${((otherCostVal / rev) * 100).toFixed(1)}%`;
             document.getElementById('plBlockTaxOther').style.height = `${pctPlOther}%`;
 
-            document.getElementById('plBlockValNet').textContent = `¥${netProfit.toLocaleString()}M`;
-            document.getElementById('plBlockPctNet').textContent = `${((netProfit / pl.revenue) * 100).toFixed(1)}%`;
+            document.getElementById('plBlockValNet').textContent = `¥${Math.round(netProfit).toLocaleString()}M`;
+            document.getElementById('plBlockPctNet').textContent = `${((netProfit / rev) * 100).toFixed(1)}%`;
             document.getElementById('plBlockNet').style.height = `${pctPlNet}%`;
 
-            // B. Update P/L Waterfall Chart
             updatePlWaterfallChart(pl.revenue, pl.costOfSales, grossProfit, pl.sga, operatingProfit, netProfit);
 
-            // P/L Quick Summary
-            const opMargin = (operatingProfit / pl.revenue) * 100;
-            const costRatio = (pl.costOfSales / pl.revenue) * 100;
-            const sgaRatio = (pl.sga / pl.revenue) * 100;
+            const opMargin = (operatingProfit / rev) * 100;
+            const costRatio = (pl.costOfSales / rev) * 100;
+            const sgaRatio = (pl.sga / rev) * 100;
 
             document.getElementById('plOpProfitMargin').textContent = `${opMargin.toFixed(1)}%`;
             document.getElementById('plCostRatio').textContent = `${costRatio.toFixed(1)}%`;
             document.getElementById('plSgaRatio').textContent = `${sgaRatio.toFixed(1)}%`;
 
-            // --- 3. Update Raw Data Summary Verification Table ---
+            // Verification Table Rendering
             populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit);
 
-            // --- 4. Compute Ratios & Diagnoses ---
-            // Safety Ratios
-            const currentRatio = (currentAssets / bs.currentLiabilities) * 100;
-            const quickRatio = (bs.cashEquiv / bs.currentLiabilities) * 100;
-            const fixedRatio = (bs.fixedAssets / bs.equity) * 100;
+            // Ratios & Analysis
+            const currentRatio = bs.currentLiabilities > 0 ? (currentAssets / bs.currentLiabilities) * 100 : 0;
+            const quickRatio = bs.currentLiabilities > 0 ? (bs.cashEquiv / bs.currentLiabilities) * 100 : 0;
+            const fixedRatio = bs.equity > 0 ? (bs.fixedAssets / bs.equity) * 100 : 0;
 
             document.getElementById('valRatioCurrent').textContent = `${currentRatio.toFixed(1)}%`;
             document.getElementById('valRatioQuick').textContent = `${quickRatio.toFixed(1)}%`;
             document.getElementById('valRatioEquity').textContent = `${equityRatio.toFixed(1)}%`;
             document.getElementById('valRatioFixed').textContent = `${fixedRatio.toFixed(1)}%`;
 
-            // Safety Evaluation
             const badgeSafety = document.getElementById('badgeSafety');
             const descSafety = document.getElementById('descSafety');
             if (currentRatio >= 150 && equityRatio >= 50) {
-                badgeSafety.textContent = "非常に安全";
+                badgeSafety.textContent = "優良";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-                descSafety.textContent = "流動比率・自己資本比率ともに非常に優れており、財務基盤は強固で健全です。";
+                descSafety.textContent = "流動比率・自己資本比率ともに非常に高水準です。長期・短期の支払能力が確保されています。";
             } else if (currentRatio >= 100 && equityRatio >= 30) {
                 badgeSafety.textContent = "標準";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800";
-                descSafety.textContent = "短期支払い能力および自己資本は標準レベルです。";
+                descSafety.textContent = "短期支払い能力および自己資本は標準的な水準です。";
             } else {
-                badgeSafety.textContent = "注意";
+                badgeSafety.textContent = "要確認";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800";
-                descSafety.textContent = "流動負債の返済負担が高めです。資金繰り管理に留意が必要です。";
+                descSafety.textContent = "流動負債や固定負債の返済負担にご注意ください。手元流動性の確保を推奨します。";
             }
 
-            // Profitability Ratios
-            const roa = (netProfit / totalAssets) * 100;
-            const roe = (netProfit / bs.equity) * 100;
-            const netMargin = (netProfit / pl.revenue) * 100;
+            const roa = totalAssets > 0 ? (netProfit / totalAssets) * 100 : 0;
+            const roe = bs.equity > 0 ? (netProfit / bs.equity) * 100 : 0;
+            const netMargin = (netProfit / rev) * 100;
 
             document.getElementById('valRatioOpMargin').textContent = `${opMargin.toFixed(1)}%`;
             document.getElementById('valRatioROA').textContent = `${roa.toFixed(1)}%`;
             document.getElementById('valRatioROE').textContent = `${roe.toFixed(1)}%`;
             document.getElementById('valRatioNetMargin').textContent = `${netMargin.toFixed(1)}%`;
 
-            // Profitability Evaluation
             const badgeProf = document.getElementById('badgeProfitability');
             const descProf = document.getElementById('descProfitability');
             if (opMargin >= 10 && roe >= 10) {
                 badgeProf.textContent = "高収益";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800";
-                descProf.textContent = "営業利益率・ROEともに高い水準を誇り、株主資本を効率的に収益化できています。";
+                descProf.textContent = "高い営業利益率を維持し、本業でしっかりと稼ぐ力があります。";
             } else if (opMargin >= 5) {
                 badgeProf.textContent = "良好";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-                descProf.textContent = "安定した収益性を維持しています。";
+                descProf.textContent = "安定した利益水準を維持しています。";
             } else {
                 badgeProf.textContent = "低調";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800";
-                descProf.textContent = "売上高に対する利益率が低めです。原価や販管費のコスト見直しを推奨します。";
+                descProf.textContent = "売上高に対する利益率がやや低めです。コスト構造の見直しを検討できます。";
             }
 
-            // Efficiency Ratios
-            const assetTurnover = pl.revenue / totalAssets;
-            const invTurnoverMonths = (bs.inventory / (pl.revenue / 12));
-            const finLeverage = totalAssets / bs.equity;
+            const assetTurnover = totalAssets > 0 ? (pl.revenue / totalAssets) : 0;
+            const invTurnoverMonths = pl.revenue > 0 ? (bs.inventory / (pl.revenue / 12)) : 0;
+            const finLeverage = bs.equity > 0 ? (totalAssets / bs.equity) : 0;
 
             document.getElementById('valRatioAssetTurnover').textContent = `${assetTurnover.toFixed(2)}回`;
             document.getElementById('valRatioInvTurnover').textContent = `${invTurnoverMonths.toFixed(2)}ヶ月`;
@@ -950,18 +1135,16 @@
             runSimulation();
         }
 
-        // Render Raw Data Tables
         function populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit) {
-            // B/S Table
             const bsRows = [
-                { name: '流動資産（当座資産）', val: bs.cashEquiv, pct: (bs.cashEquiv / totalAssets) * 100 },
-                { name: '流動資産（棚卸資産）', val: bs.inventory, pct: (bs.inventory / totalAssets) * 100 },
-                { name: '流動資産 合計', val: currentAssets, pct: (currentAssets / totalAssets) * 100, bold: true },
-                { name: '固定資産', val: bs.fixedAssets, pct: (bs.fixedAssets / totalAssets) * 100, bold: true },
+                { name: '流動資産（当座資産）', val: bs.cashEquiv, pct: totalAssets > 0 ? (bs.cashEquiv / totalAssets) * 100 : 0 },
+                { name: '流動資産（棚卸資産）', val: bs.inventory, pct: totalAssets > 0 ? (bs.inventory / totalAssets) * 100 : 0 },
+                { name: '流動資産 合計', val: currentAssets, pct: totalAssets > 0 ? (currentAssets / totalAssets) * 100 : 0, bold: true },
+                { name: '固定資産', val: bs.fixedAssets, pct: totalAssets > 0 ? (bs.fixedAssets / totalAssets) * 100 : 0, bold: true },
                 { name: '【 資産の部 合計 】', val: totalAssets, pct: 100.0, header: true },
-                { name: '流動負債', val: bs.currentLiabilities, pct: (bs.currentLiabilities / totalAssets) * 100 },
-                { name: '固定負債', val: bs.fixedLiabilities, pct: (bs.fixedLiabilities / totalAssets) * 100 },
-                { name: '純資産（自己資本）', val: bs.equity, pct: (bs.equity / totalAssets) * 100, bold: true },
+                { name: '流動負債', val: bs.currentLiabilities, pct: totalAssets > 0 ? (bs.currentLiabilities / totalAssets) * 100 : 0 },
+                { name: '固定負債', val: bs.fixedLiabilities, pct: totalAssets > 0 ? (bs.fixedLiabilities / totalAssets) * 100 : 0 },
+                { name: '純資産（自己資本）', val: bs.equity, pct: totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0, bold: true },
                 { name: '【 負債・純資産の部 合計 】', val: bs.currentLiabilities + bs.fixedLiabilities + bs.equity, pct: 100.0, header: true }
             ];
 
@@ -970,31 +1153,24 @@
                 const bgClass = r.header ? 'bg-sky-50 font-bold border-t border-b' : (r.bold ? 'font-semibold' : '');
                 bsHtml += `<tr class="${bgClass}">
                     <td class="px-3 py-1.5">${r.name}</td>
-                    <td class="px-3 py-1.5 text-right font-mono">¥${r.val.toLocaleString()}M</td>
+                    <td class="px-3 py-1.5 text-right font-mono">¥${Math.round(r.val).toLocaleString()}M</td>
                     <td class="px-3 py-1.5 text-right font-mono text-slate-500">${r.pct.toFixed(1)}%</td>
                 </tr>`;
             });
             document.getElementById('bsTableBody').innerHTML = bsHtml;
 
-            const bsBalCheck = document.getElementById('tblBsBalanceCheck');
-            if (totalAssets === (bs.currentLiabilities + bs.fixedLiabilities + bs.equity)) {
-                bsBalCheck.innerHTML = `<span class="text-emerald-300"><i class="fa-solid fa-check"></i> 貸借バランス一致</span>`;
-            } else {
-                bsBalCheck.innerHTML = `<span class="text-rose-300"><i class="fa-solid fa-xmark"></i> 差額有</span>`;
-            }
-
-            // P/L Table
+            const rev = Math.max(1, pl.revenue);
             const plRows = [
                 { name: '売上高', val: pl.revenue, pct: 100.0, header: true },
-                { name: '売上原価', val: pl.costOfSales, pct: (pl.costOfSales / pl.revenue) * 100 },
-                { name: '売上総利益（粗利）', val: grossProfit, pct: (grossProfit / pl.revenue) * 100, bold: true },
-                { name: '販売費及び一般管理費', val: pl.sga, pct: (pl.sga / pl.revenue) * 100 },
-                { name: '営業利益', val: operatingProfit, pct: (operatingProfit / pl.revenue) * 100, bold: true },
-                { name: '営業外損益', val: pl.nonOpIncome, pct: (pl.nonOpIncome / pl.revenue) * 100 },
-                { name: '経常利益', val: recurringProfit, pct: (recurringProfit / pl.revenue) * 100, bold: true },
-                { name: '特別損益', val: pl.extraordinary, pct: (pl.extraordinary / pl.revenue) * 100 },
-                { name: '法人税等コスト', val: pl.taxes, pct: (pl.taxes / pl.revenue) * 100 },
-                { name: '【 当期純利益 】', val: netProfit, pct: (netProfit / pl.revenue) * 100, header: true }
+                { name: '売上原価', val: pl.costOfSales, pct: (pl.costOfSales / rev) * 100 },
+                { name: '売上総利益（粗利）', val: grossProfit, pct: (grossProfit / rev) * 100, bold: true },
+                { name: '販売費及び一般管理費', val: pl.sga, pct: (pl.sga / rev) * 100 },
+                { name: '営業利益', val: operatingProfit, pct: (operatingProfit / rev) * 100, bold: true },
+                { name: '営業外損益', val: pl.nonOpIncome, pct: (pl.nonOpIncome / rev) * 100 },
+                { name: '経常利益', val: recurringProfit, pct: (recurringProfit / rev) * 100, bold: true },
+                { name: '特別損益', val: pl.extraordinary, pct: (pl.extraordinary / rev) * 100 },
+                { name: '法人税等コスト', val: pl.taxes, pct: (pl.taxes / rev) * 100 },
+                { name: '【 当期純利益 】', val: netProfit, pct: (netProfit / rev) * 100, header: true }
             ];
 
             let plHtml = '';
@@ -1002,7 +1178,7 @@
                 const bgClass = r.header ? 'bg-emerald-50 font-bold border-t border-b' : (r.bold ? 'font-semibold' : '');
                 plHtml += `<tr class="${bgClass}">
                     <td class="px-3 py-1.5">${r.name}</td>
-                    <td class="px-3 py-1.5 text-right font-mono">¥${r.val.toLocaleString()}M</td>
+                    <td class="px-3 py-1.5 text-right font-mono">¥${Math.round(r.val).toLocaleString()}M</td>
                     <td class="px-3 py-1.5 text-right font-mono text-slate-500">${r.pct.toFixed(1)}%</td>
                 </tr>`;
             });
@@ -1011,49 +1187,23 @@
 
         function initWaterfallChart() {
             const ctx = document.getElementById('plWaterfallChart').getContext('2d');
-            
             plChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['売上高', '売上原価', '売上総利益', '販管費', '営業利益', '当期純利益'],
                     datasets: [{
-                        label: '金額',
                         data: [0, 0, 0, 0, 0, 0],
-                        backgroundColor: [
-                            '#4f46e5', // 売上高 (Indigo)
-                            '#ef4444', // 売上原価 (Red)
-                            '#0284c7', // 総利益 (Sky)
-                            '#f59e0b', // 販管費 (Amber)
-                            '#10b981', // 営業利益 (Emerald)
-                            '#059669'  // 当期純利益 (Dark Emerald)
-                        ],
+                        backgroundColor: ['#4f46e5', '#ef4444', '#0284c7', '#f59e0b', '#10b981', '#059669'],
                         borderRadius: 6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `金額: ¥${context.raw.toLocaleString()}M`;
-                                }
-                            }
-                        }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#f1f5f9' },
-                            ticks: {
-                                callback: function(value) { return '¥' + value + 'M'; }
-                            }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
                     }
                 }
             });
@@ -1061,7 +1211,7 @@
 
         function updatePlWaterfallChart(rev, cost, gross, sga, op, net) {
             if (plChart) {
-                plChart.data.datasets[0].data = [rev, cost, gross, sga, op, net];
+                plChart.data.datasets[0].data = [Math.round(rev), Math.round(cost), Math.round(gross), Math.round(sga), Math.round(op), Math.round(net)];
                 plChart.update();
             }
         }
@@ -1074,23 +1224,21 @@
             document.getElementById('labelCostSim').textContent = `${costSimPct > 0 ? '+' : ''}${costSimPct}%`;
 
             const baseRev = financialData.pl.revenue;
-            const baseCostRatio = (financialData.pl.costOfSales / baseRev) * 100;
+            const baseCostRatio = baseRev > 0 ? (financialData.pl.costOfSales / baseRev) * 100 : 0;
 
-            // Simulated Values
             const simRev = baseRev * (1 + revSimPct / 100);
             const simCostRatio = Math.max(0, baseCostRatio + costSimPct);
             const simCost = simRev * (simCostRatio / 100);
-            const simSGA = financialData.pl.sga; // 固定と仮定
+            const simSGA = financialData.pl.sga;
             const simOpProfit = simRev - simCost - simSGA;
 
             const baseOpProfit = baseRev - financialData.pl.costOfSales - simSGA;
             const diffOp = simOpProfit - baseOpProfit;
 
-            // Simulated ROE Estimate
-            const approxNetProfit = simOpProfit * 0.7; // 簡易税引き後
-            const totalAssets = financialData.bs.cashEquiv + financialData.bs.inventory + financialData.bs.fixedAssets;
-            const simROE = (approxNetProfit / financialData.bs.equity) * 100;
-            const baseROE = ((financialData.pl.revenue - financialData.pl.costOfSales - financialData.pl.sga - financialData.pl.taxes) / financialData.bs.equity) * 100;
+            const approxNetProfit = simOpProfit * 0.7;
+            const simROE = financialData.bs.equity > 0 ? (approxNetProfit / financialData.bs.equity) * 100 : 0;
+            const baseNetProfit = baseOpProfit - financialData.pl.taxes;
+            const baseROE = financialData.bs.equity > 0 ? (baseNetProfit / financialData.bs.equity) * 100 : 0;
 
             document.getElementById('simOperatingProfit').textContent = `¥${Math.round(simOpProfit).toLocaleString()}M`;
             const simOpDiffEl = document.getElementById('simOpDiff');
@@ -1113,8 +1261,8 @@
         function toggleEditModal() {
             const modal = document.getElementById('editModal');
             if (modal.classList.contains('hidden')) {
-                // Populate current state into inputs
-                document.getElementById('inputCompanyName').value = financialData.companyName;
+                // Populate current values
+                document.getElementById('inputCompanyName').value = financialData.companyName || '';
                 document.getElementById('inputCashEquiv').value = financialData.bs.cashEquiv;
                 document.getElementById('inputInventory').value = financialData.bs.inventory;
                 document.getElementById('inputFixedAssets').value = financialData.bs.fixedAssets;
@@ -1129,33 +1277,51 @@
                 document.getElementById('inputExtraordinary').value = financialData.pl.extraordinary;
                 document.getElementById('inputTaxes').value = financialData.pl.taxes;
 
+                document.getElementById('inputUnit').value = "1";
+                convertUnitNotice();
+
                 modal.classList.remove('hidden');
             } else {
                 modal.classList.add('hidden');
             }
         }
 
+        function convertUnitNotice() {
+            const unit = document.getElementById('inputUnit').value;
+            const notice = document.getElementById('unitNotice');
+            if (unit !== "1") {
+                notice.classList.remove('hidden');
+            } else {
+                notice.classList.add('hidden');
+            }
+        }
+
         function saveManualData(event) {
             event.preventDefault();
-            financialData.companyName = document.getElementById('inputCompanyName').value;
-            
-            financialData.bs.cashEquiv = parseFloat(document.getElementById('inputCashEquiv').value) || 0;
-            financialData.bs.inventory = parseFloat(document.getElementById('inputInventory').value) || 0;
-            financialData.bs.fixedAssets = parseFloat(document.getElementById('inputFixedAssets').value) || 0;
-            financialData.bs.currentLiabilities = parseFloat(document.getElementById('inputCurrentLiabilities').value) || 0;
-            financialData.bs.fixedLiabilities = parseFloat(document.getElementById('inputFixedLiabilities').value) || 0;
-            financialData.bs.equity = parseFloat(document.getElementById('inputEquity').value) || 0;
+            const unitDivider = parseFloat(document.getElementById('inputUnit').value) || 1;
 
-            financialData.pl.revenue = parseFloat(document.getElementById('inputRevenue').value) || 0;
-            financialData.pl.costOfSales = parseFloat(document.getElementById('inputCostOfSales').value) || 0;
-            financialData.pl.sga = parseFloat(document.getElementById('inputSGA').value) || 0;
-            financialData.pl.nonOpIncome = parseFloat(document.getElementById('inputNonOpIncome').value) || 0;
-            financialData.pl.extraordinary = parseFloat(document.getElementById('inputExtraordinary').value) || 0;
-            financialData.pl.taxes = parseFloat(document.getElementById('inputTaxes').value) || 0;
+            financialData.companyName = document.getElementById('inputCompanyName').value;
+
+            financialData.bs.cashEquiv = (parseFloat(document.getElementById('inputCashEquiv').value) || 0) / unitDivider;
+            financialData.bs.inventory = (parseFloat(document.getElementById('inputInventory').value) || 0) / unitDivider;
+            financialData.bs.fixedAssets = (parseFloat(document.getElementById('inputFixedAssets').value) || 0) / unitDivider;
+            financialData.bs.currentLiabilities = (parseFloat(document.getElementById('inputCurrentLiabilities').value) || 0) / unitDivider;
+            financialData.bs.fixedLiabilities = (parseFloat(document.getElementById('inputFixedLiabilities').value) || 0) / unitDivider;
+            financialData.bs.equity = (parseFloat(document.getElementById('inputEquity').value) || 0) / unitDivider;
+
+            financialData.pl.revenue = (parseFloat(document.getElementById('inputRevenue').value) || 0) / unitDivider;
+            financialData.pl.costOfSales = (parseFloat(document.getElementById('inputCostOfSales').value) || 0) / unitDivider;
+            financialData.pl.sga = (parseFloat(document.getElementById('inputSGA').value) || 0) / unitDivider;
+            financialData.pl.nonOpIncome = (parseFloat(document.getElementById('inputNonOpIncome').value) || 0) / unitDivider;
+            financialData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
+            financialData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
 
             toggleEditModal();
             resetSimulation();
             updateAllVisuals();
+            
+            // Open raw data drawer to verify
+            document.getElementById('rawDataDrawer').classList.remove('hidden');
         }
 
         async function handlePdfUpload(event) {
@@ -1164,80 +1330,145 @@
 
             const alertBox = document.getElementById('pdfStatusAlert');
             const alertText = document.getElementById('pdfStatusText');
+            const logsBox = document.getElementById('pdfParsingLogs');
+            
             alertBox.classList.remove('hidden');
+            logsBox.classList.remove('hidden');
             alertText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> PDF「${file.name}」を解析中...`;
+            logsBox.innerHTML = `PDFロード中...`;
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 let fullText = '';
+                let logs = `全${pdf.numPages}ページをスキャン中...\n`;
 
                 for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
                     const pageText = textContent.items.map(item => item.str).join(' ');
-                    fullText += pageText + ' ';
+                    fullText += pageText + '\n';
                 }
 
-                // Extract Financial Metrics using Keyword Pattern Matching
-                const extractedName = file.name.replace('.pdf', '') + ' (PDF解析)';
+                // Process Text and extract metrics
+                const extractedName = file.name.replace(/\.[^/.]+$/, "") + ' (PDF抽出)';
+                const parseResult = processFinancialText(fullText, extractedName);
+
+                logs += `【単位判定】: ${parseResult.unitDetected}\n`;
+                logs += `【抽出結果】: 売上高=¥${parseResult.data.pl.revenue}M, 資産合計=¥${parseResult.totalAssets}M, 純資産=¥${parseResult.data.bs.equity}M\n`;
+                logsBox.innerHTML = logs.replace(/\n/g, '<br>');
+
+                financialData = parseResult.data;
+                uploadedPdfData = JSON.parse(JSON.stringify(financialData));
+
+                const btnPdf = document.getElementById('btnLoadedPdf');
+                if (btnPdf) btnPdf.classList.remove('hidden');
+
+                alertText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i> PDF「${file.name}」の解析が完了しました。手入力ダイアログから調整できます。`;
                 
-                const parseNum = (keywords) => {
-                    for (let kw of keywords) {
-                        const reg = new RegExp(`${kw}[\\s\\:：\\|]*([\\d,]+)`, 'i');
-                        const match = fullText.match(reg);
-                        if (match && match[1]) {
-                            const val = parseInt(match[1].replace(/,/g, ''), 10);
-                            if (!isNaN(val) && val > 0) return val;
-                        }
-                    }
-                    return null;
-                };
-
-                // Smart Keyword Lookup
-                const rev = parseNum(['売上高', '営業収益', '売上収益']) || 12000;
-                const cost = parseNum(['売上原価', '営業原価']) || Math.round(rev * 0.6);
-                const sga = parseNum(['販売費及び一般管理費', '販管費']) || Math.round(rev * 0.25);
-                const totalAssetExt = parseNum(['資産合計', '総資産']) || 15000;
-                const equityExt = parseNum(['純資産合計', '自己資本']) || Math.round(totalAssetExt * 0.5);
-
-                // Update Application State
-                financialData.companyName = extractedName;
-                financialData.pl.revenue = rev;
-                financialData.pl.costOfSales = cost;
-                financialData.pl.sga = sga;
-                financialData.pl.taxes = Math.round((rev - cost - sga) * 0.3);
-
-                financialData.bs.cashEquiv = Math.round(totalAssetExt * 0.35);
-                financialData.bs.inventory = Math.round(totalAssetExt * 0.15);
-                financialData.bs.fixedAssets = totalAssetExt - (financialData.bs.cashEquiv + financialData.bs.inventory);
-                
-                const liabilities = totalAssetExt - equityExt;
-                financialData.bs.currentLiabilities = Math.round(liabilities * 0.6);
-                financialData.bs.fixedLiabilities = liabilities - financialData.bs.currentLiabilities;
-                financialData.bs.equity = equityExt;
-
-                alertText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i> PDF「${file.name}」から主要数値を正常に抽出・反映しました。`;
-                
-                // Show verification drawer on PDF load so user can check
                 document.getElementById('rawDataDrawer').classList.remove('hidden');
-
                 resetSimulation();
                 updateAllVisuals();
+
             } catch (err) {
                 console.error(err);
-                alertText.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDF解析中にエラーが発生しました。テキストの手入力またはサンプルデータをお試しください。`;
+                alertText.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDFの解析中にエラーが発生しました。「テキスト貼り付け」または「手入力・調整」をご利用ください。`;
             }
+        }
+
+        // Japanese Financial Text Extraction Helper Engine
+        function processFinancialText(rawText, defaultName) {
+            // Detect Unit (単位)
+            let multiplier = 1; // Default assumes Millions (百万円)
+            let unitDetected = "百万円（推定）";
+
+            if (/単位[\s:：]*千円/i.test(rawText) || /（千円）/.test(rawText)) {
+                multiplier = 0.001; // Convert Thousand Yen -> Million Yen
+                unitDetected = "千円 (1/1000に自動換算)";
+            } else if (/単位[\s:：]*円/i.test(rawText) || /（円）/.test(rawText)) {
+                multiplier = 0.000001; // Convert Yen -> Million Yen
+                unitDetected = "円 (1/1000000に自動換算)";
+            } else if (/単位[\s:：]*百万円/i.test(rawText) || /（百万円）/.test(rawText)) {
+                multiplier = 1;
+                unitDetected = "百万円";
+            }
+
+            // Extract numbers near key Japanese account keywords
+            const findValue = (keywords) => {
+                for (let kw of keywords) {
+                    // Match keyword followed by optional symbols and numeric digits with commas, minus △ ▲
+                    const reg = new RegExp(`${kw}[\\s\\:：\\|\\t]*([△▲\\-]?\\s*[\\d,]+)`, 'i');
+                    const match = rawText.match(reg);
+                    if (match && match[1]) {
+                        let numStr = match[1].replace(/[\s,]/g, '').replace(/[△▲]/g, '-');
+                        let val = parseFloat(numStr);
+                        if (!isNaN(val) && Math.abs(val) > 0) {
+                            return val * multiplier;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const rev = findValue(['売上高', '営業収益', '売上収益', '完成工事高']) || 500;
+            const cost = findValue(['売上原価', '営業原価', '完成工事原価']) || Math.round(rev * 0.6);
+            const sga = findValue(['販売費及び一般管理費', '販管費', '販売費及び一般管理費合計']) || Math.round(rev * 0.25);
+            const taxes = findValue(['法人税等', '法人税、住民税及び事業税']) || Math.round((rev - cost - sga) * 0.3);
+
+            const totalAssets = findValue(['資産合計', '資産の部合計', '総資産']) || 250;
+            const cash = findValue(['現金及び預金', '当座資産']) || Math.round(totalAssets * 0.5);
+            const inv = findValue(['棚卸資産', '商品及び製品', 'たな卸資産']) || Math.round(totalAssets * 0.1);
+            const fixed = findValue(['固定資産合計', '固定資産']) || (totalAssets - cash - inv);
+
+            const equity = findValue(['純資産合計', '純資産の部合計', '株主資本合計', '自己資本']) || Math.round(totalAssets * 0.6);
+            const totalLiab = findValue(['負債合計', '負債の部合計']) || (totalAssets - equity);
+            const currLiab = findValue(['流動負債合計', '流動負債']) || Math.round(totalLiab * 0.7);
+            const fixedLiab = totalLiab - currLiab;
+
+            return {
+                unitDetected,
+                totalAssets,
+                data: {
+                    companyName: defaultName,
+                    bs: {
+                        cashEquiv: Math.max(0, cash),
+                        inventory: Math.max(0, inv),
+                        fixedAssets: Math.max(0, fixed),
+                        currentLiabilities: Math.max(0, currLiab),
+                        fixedLiabilities: Math.max(0, fixedLiab),
+                        equity: Math.max(0, equity)
+                    },
+                    pl: {
+                        revenue: Math.max(0, rev),
+                        costOfSales: Math.max(0, cost),
+                        sga: Math.max(0, sga),
+                        nonOpIncome: 0,
+                        extraordinary: 0,
+                        taxes: Math.max(0, taxes)
+                    }
+                }
+            };
+        }
+
+        function parsePastedText() {
+            const rawText = document.getElementById('pasteTextInput').value;
+            if (!rawText.trim()) return;
+
+            const parseResult = processFinancialText(rawText, 'テキスト解析企業');
+            financialData = parseResult.data;
+
+            togglePasteModal();
+            resetSimulation();
+            updateAllVisuals();
+            document.getElementById('rawDataDrawer').classList.remove('hidden');
         }
 
         function closePdfStatus() {
             document.getElementById('pdfStatusAlert').classList.add('hidden');
         }
 
-        // --- STREAMING_CHUNK: Implementing PDF Export logic ---
         function togglePdfModal() {
-            const modal = document.getElementById('pdfExportModal');
-            modal.classList.toggle('hidden');
+            document.getElementById('pdfExportModal').classList.toggle('hidden');
         }
 
         function exportPdfReport() {
@@ -1251,52 +1482,48 @@
             const recurringProfit = operatingProfit + pl.nonOpIncome;
             const netProfit = recurringProfit + pl.extraordinary - pl.taxes;
 
-            const currentRatio = (currentAssets / bs.currentLiabilities) * 100;
-            const equityRatio = (bs.equity / totalAssets) * 100;
-            const fixedRatio = (bs.fixedAssets / bs.equity) * 100;
+            const currentRatio = bs.currentLiabilities > 0 ? (currentAssets / bs.currentLiabilities) * 100 : 0;
+            const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
+            const fixedRatio = bs.equity > 0 ? (bs.fixedAssets / bs.equity) * 100 : 0;
 
-            const opMargin = (operatingProfit / pl.revenue) * 100;
-            const roa = (netProfit / totalAssets) * 100;
-            const roe = (netProfit / bs.equity) * 100;
+            const opMargin = pl.revenue > 0 ? (operatingProfit / pl.revenue) * 100 : 0;
+            const roa = totalAssets > 0 ? (netProfit / totalAssets) * 100 : 0;
+            const roe = bs.equity > 0 ? (netProfit / bs.equity) * 100 : 0;
 
-            const assetTurnover = pl.revenue / totalAssets;
-            const invTurnoverMonths = (bs.inventory / (pl.revenue / 12));
-            const finLeverage = totalAssets / bs.equity;
+            const assetTurnover = totalAssets > 0 ? pl.revenue / totalAssets : 0;
+            const invTurnoverMonths = pl.revenue > 0 ? (bs.inventory / (pl.revenue / 12)) : 0;
+            const finLeverage = bs.equity > 0 ? totalAssets / bs.equity : 0;
 
-            // Populate Report Header & KPIs
-            document.getElementById('pdfReportCompanyName').textContent = financialData.companyName;
+            document.getElementById('pdfReportCompanyName').textContent = financialData.companyName || '対象企業';
             document.getElementById('pdfReportDate').textContent = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
-            document.getElementById('pdfKpiAssets').textContent = `¥${totalAssets.toLocaleString()}M`;
-            document.getElementById('pdfKpiRevenue').textContent = `¥${pl.revenue.toLocaleString()}M`;
-            document.getElementById('pdfKpiOpProfit').textContent = `¥${operatingProfit.toLocaleString()}M (${opMargin.toFixed(1)}%)`;
+            document.getElementById('pdfKpiAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
+            document.getElementById('pdfKpiRevenue').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
+            document.getElementById('pdfKpiOpProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M (${opMargin.toFixed(1)}%)`;
             document.getElementById('pdfKpiEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
 
-            // Populate Report B/S Table
             const bsRows = [
-                `<tr><td class="p-1">流動資産 (当座+棚卸)</td><td class="p-1 text-right">¥${currentAssets.toLocaleString()}M</td><td class="p-1 text-right">${((currentAssets/totalAssets)*100).toFixed(1)}%</td></tr>`,
-                `<tr><td class="p-1">固定資産</td><td class="p-1 text-right">¥${bs.fixedAssets.toLocaleString()}M</td><td class="p-1 text-right">${((bs.fixedAssets/totalAssets)*100).toFixed(1)}%</td></tr>`,
-                `<tr class="font-bold bg-slate-100"><td class="p-1">資産合計</td><td class="p-1 text-right">¥${totalAssets.toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
-                `<tr><td class="p-1">負債合計 (流動+固定)</td><td class="p-1 text-right">¥${(bs.currentLiabilities+bs.fixedLiabilities).toLocaleString()}M</td><td class="p-1 text-right">${(((bs.currentLiabilities+bs.fixedLiabilities)/totalAssets)*100).toFixed(1)}%</td></tr>`,
-                `<tr class="font-bold bg-emerald-50"><td class="p-1">純資産 (自己資本)</td><td class="p-1 text-right">¥${bs.equity.toLocaleString()}M</td><td class="p-1 text-right">${equityRatio.toFixed(1)}%</td></tr>`
+                `<tr><td class="p-1">流動資産 (当座+棚卸)</td><td class="p-1 text-right">¥${Math.round(currentAssets).toLocaleString()}M</td><td class="p-1 text-right">${totalAssets > 0 ? ((currentAssets/totalAssets)*100).toFixed(1) : 0}%</td></tr>`,
+                `<tr><td class="p-1">固定資産</td><td class="p-1 text-right">¥${Math.round(bs.fixedAssets).toLocaleString()}M</td><td class="p-1 text-right">${totalAssets > 0 ? ((bs.fixedAssets/totalAssets)*100).toFixed(1) : 0}%</td></tr>`,
+                `<tr class="font-bold bg-slate-100"><td class="p-1">資産合計</td><td class="p-1 text-right">¥${Math.round(totalAssets).toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
+                `<tr><td class="p-1">負債合計 (流動+固定)</td><td class="p-1 text-right">¥${Math.round(bs.currentLiabilities+bs.fixedLiabilities).toLocaleString()}M</td><td class="p-1 text-right">${totalAssets > 0 ? (((bs.currentLiabilities+bs.fixedLiabilities)/totalAssets)*100).toFixed(1) : 0}%</td></tr>`,
+                `<tr class="font-bold bg-emerald-50"><td class="p-1">純資産 (自己資本)</td><td class="p-1 text-right">¥${Math.round(bs.equity).toLocaleString()}M</td><td class="p-1 text-right">${equityRatio.toFixed(1)}%</td></tr>`
             ];
             document.getElementById('pdfTbodyBs').innerHTML = bsRows.join('');
 
-            // Populate Report P/L Table
             const plRows = [
-                `<tr class="font-bold bg-slate-100"><td class="p-1">売上高</td><td class="p-1 text-right">¥${pl.revenue.toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
-                `<tr><td class="p-1">売上原価</td><td class="p-1 text-right">¥${pl.costOfSales.toLocaleString()}M</td><td class="p-1 text-right">${((pl.costOfSales/pl.revenue)*100).toFixed(1)}%</td></tr>`,
-                `<tr><td class="p-1">販管費</td><td class="p-1 text-right">¥${pl.sga.toLocaleString()}M</td><td class="p-1 text-right">${((pl.sga/pl.revenue)*100).toFixed(1)}%</td></tr>`,
-                `<tr class="font-bold text-emerald-700 bg-emerald-50"><td class="p-1">営業利益</td><td class="p-1 text-right">¥${operatingProfit.toLocaleString()}M</td><td class="p-1 text-right">${opMargin.toFixed(1)}%</td></tr>`,
-                `<tr class="font-bold"><td class="p-1">当期純利益</td><td class="p-1 text-right">¥${netProfit.toLocaleString()}M</td><td class="p-1 text-right">${((netProfit/pl.revenue)*100).toFixed(1)}%</td></tr>`
+                `<tr class="font-bold bg-slate-100"><td class="p-1">売上高</td><td class="p-1 text-right">¥${Math.round(pl.revenue).toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
+                `<tr><td class="p-1">売上原価</td><td class="p-1 text-right">¥${Math.round(pl.costOfSales).toLocaleString()}M</td><td class="p-1 text-right">${pl.revenue > 0 ? ((pl.costOfSales/pl.revenue)*100).toFixed(1) : 0}%</td></tr>`,
+                `<tr><td class="p-1">販管費</td><td class="p-1 text-right">¥${Math.round(pl.sga).toLocaleString()}M</td><td class="p-1 text-right">${pl.revenue > 0 ? ((pl.sga/pl.revenue)*100).toFixed(1) : 0}%</td></tr>`,
+                `<tr class="font-bold text-emerald-700 bg-emerald-50"><td class="p-1">営業利益</td><td class="p-1 text-right">¥${Math.round(operatingProfit).toLocaleString()}M</td><td class="p-1 text-right">${opMargin.toFixed(1)}%</td></tr>`,
+                `<tr class="font-bold"><td class="p-1">当期純利益</td><td class="p-1 text-right">¥${Math.round(netProfit).toLocaleString()}M</td><td class="p-1 text-right">${pl.revenue > 0 ? ((netProfit/pl.revenue)*100).toFixed(1) : 0}%</td></tr>`
             ];
             document.getElementById('pdfTbodyPl').innerHTML = plRows.join('');
 
-            // Populate Diagnosis Ratios
             document.getElementById('pdfValCurrentRatio').textContent = `${currentRatio.toFixed(1)}%`;
             document.getElementById('pdfValEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
             document.getElementById('pdfValFixedRatio').textContent = `${fixedRatio.toFixed(1)}%`;
-            document.getElementById('pdfBadgeSafety').textContent = currentRatio >= 150 && equityRatio >= 50 ? '優良' : (currentRatio >= 100 ? '標準' : '注意');
+            document.getElementById('pdfBadgeSafety').textContent = currentRatio >= 150 && equityRatio >= 50 ? '優良' : (currentRatio >= 100 ? '標準' : '要確認');
 
             document.getElementById('pdfValOpMargin').textContent = `${opMargin.toFixed(1)}%`;
             document.getElementById('pdfValROA').textContent = `${roa.toFixed(1)}%`;
@@ -1312,14 +1539,13 @@
             document.getElementById('pdfDescProfit').textContent = document.getElementById('descProfitability').textContent;
             document.getElementById('pdfDescEfficiency').textContent = document.getElementById('descEfficiency').textContent;
 
-            // Synthesis Overall Comment
-            let commentary = `対象企業「${financialData.companyName}」の財務状態は、自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% となっています。`;
+            let commentary = `対象「${financialData.companyName}」の財務評価: 自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% です。`;
             if (opMargin >= 10 && equityRatio >= 50) {
-                commentary += "極めて健全な財務体質と優れた稼ぐ力を両立しており、自己資金による事業拡大や積極投資を推進できる良好な経営状況です。";
+                commentary += "高い安全性を有し、かつ収益力も優秀です。自己資金による事業投資を安全に拡大できる体質を持っています。";
             } else if (equityRatio >= 40) {
-                commentary += "安定した自己資本ベースが確立されており、継続的な営業利益の創出を通じて着実な事業基盤の強化が期待できます。";
+                commentary += "健全な財務基盤が維持されています。事業成長に伴う適正な原価管理・回収管理を継続することが推奨されます。";
             } else {
-                commentary += "資金繰り・利益水準の更なる向上のため、原価や販管費の効率化、ならびに棚卸資産等の資産効率の向上が推奨されます。";
+                commentary += "流動性およびコスト管理の更なる見直しを進めることで、収益性と財務の安全性を高めることができます。";
             }
             document.getElementById('pdfOverallComment').textContent = commentary;
 
@@ -1328,7 +1554,7 @@
 
         function downloadPdfNow() {
             const reportEl = document.getElementById('pdfReportContent');
-            const cleanName = financialData.companyName.replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '_');
+            const cleanName = (financialData.companyName || '企業').replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '_');
             const opt = {
                 margin: [8, 8, 8, 8],
                 filename: `FinVision_財務診断レポート_${cleanName}.pdf`,
