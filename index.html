@@ -126,9 +126,9 @@
                 <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-database"></i> データ:</span>
                 <button onclick="loadSampleData('tech')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">IT/SaaS</button>
                 <button onclick="loadSampleData('kango')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">訪問看護</button>
-                <button onclick="loadSampleData('daikichi')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">買取大吉</button>
-                <button id="btnLoadedPdf" onclick="loadUploadedPdfData()" class="hidden px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs rounded-md font-bold transition ml-1">
-                    <i class="fa-regular fa-file-pdf"></i> 解析済みPDF
+                <button onclick="loadSampleData('reuse')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">リユース買取</button>
+                <button id="btnLoadedCustomData" onclick="loadCustomData()" class="hidden px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs rounded-md font-bold transition ml-1 shadow-sm">
+                    <i class="fa-solid fa-rotate-left"></i> 自社データに復帰
                 </button>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -248,7 +248,7 @@
                     <div id="bsDiagramContainer" class="grid gap-3 h-[420px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all grid-cols-1">
                         
                         <!-- PREV PERIOD (Hidden in single mode) -->
-                        <div id="bsPrevPeriod" class="hidden grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity flex-col">
+                        <div id="bsPrevPeriod" class="hidden grid grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity">
                             <div class="flex flex-col h-full gap-1">
                                 <div id="prevBoxCurrentAssets" class="bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="prevValCurrentAssets">¥0M</span></div>
@@ -271,7 +271,7 @@
                         </div>
 
                         <!-- CURR PERIOD -->
-                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-2 h-full flex-col">
+                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-2 h-full">
                             <!-- Assets -->
                             <div class="flex flex-col h-full gap-1">
                                 <div id="boxCurrentAssets" class="bg-sky-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] relative">
@@ -789,7 +789,13 @@
                 <button onclick="togglePasteModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <p class="text-xs text-slate-600">PDFからコピーしたテキストや、決算書・短信の数値テキストをそのまま枠内に貼り付けて「解析」を押してください。</p>
+            <div class="space-y-2">
+                <p class="text-xs text-slate-600">PDFからコピーしたテキストや、決算書・短信の数値テキストをそのまま枠内に貼り付けて「解析」を押してください。</p>
+                <div class="bg-amber-50 text-amber-800 text-[10px] p-2 rounded border border-amber-200 flex gap-2 items-start">
+                    <i class="fa-solid fa-circle-info mt-0.5"></i>
+                    <p><strong>注意：</strong>テキスト読込で自動解析されるのは<strong>「当期（最新）」</strong>のデータのみです。2期比較を行うための「前期」データは、読込完了後に上部メニューの<strong>「数値調整」から手入力</strong>で追加してください。</p>
+                </div>
+            </div>
 
             <div>
                 <textarea id="pasteTextInput" rows="8" placeholder="ここに決算書テキストを貼り付けてください（例: 売上高 500,000千円 売上原価 320,000千円 資産合計 250,000千円 ...）" class="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
@@ -967,7 +973,7 @@
         // Global State Object (Supports multiple periods)
         let appState = {
             viewMode: 'single', // 'single' or 'compare'
-            companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
+            companyName: 'サンプル訪問看護ステーション（医療・ヘルスケアモデル）',
             currentPeriod: {
                 bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
                 pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
@@ -982,7 +988,7 @@
         // サンプル用プリセットデータ
         const samplePresets = {
             kango: {
-                companyName: 'あおぞら訪問看護ステーション',
+                companyName: 'サンプル訪問看護ステーション',
                 currentPeriod: {
                     bs: { cashEquiv: 210, inventory: 0, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 140 },
                     pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
@@ -992,8 +998,8 @@
                     pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
                 }
             },
-            daikichi: {
-                companyName: '株式会社エンパワー / 買取大吉',
+            reuse: {
+                companyName: 'サンプルリユース株式会社（買取モデル）',
                 currentPeriod: {
                     bs: { cashEquiv: 300, inventory: 150, fixedAssets: 50, currentLiabilities: 120, fixedLiabilities: 80, equity: 300 },
                     pl: { revenue: 1200, costOfSales: 600, sga: 400, nonOpIncome: 10, extraordinary: -5, taxes: 60 }
@@ -1004,7 +1010,7 @@
                 }
             },
             tech: {
-                companyName: 'クラウドSaaS株式会社（ITモデル）',
+                companyName: 'サンプルクラウドSaaS株式会社（ITモデル）',
                 currentPeriod: {
                     bs: { cashEquiv: 500, inventory: 0, fixedAssets: 200, currentLiabilities: 150, fixedLiabilities: 50, equity: 500 },
                     pl: { revenue: 800, costOfSales: 200, sga: 450, nonOpIncome: 0, extraordinary: 0, taxes: 45 }
@@ -1016,8 +1022,8 @@
             }
         };
 
-        // Cache last extracted PDF data
-        let uploadedPdfData = null;
+        // Cache last custom extracted/input data
+        let customDataCache = null;
         let plViewMode = 'block';
         let plChart = null;
         let radarChartInstance = null; // ★追加: レーダーチャート用変数
@@ -1101,13 +1107,21 @@
             }
         }
 
-        function loadUploadedPdfData() {
-            if (uploadedPdfData) {
-                appState.currentPeriod = JSON.parse(JSON.stringify(uploadedPdfData.currentPeriod));
-                appState.companyName = uploadedPdfData.companyName;
+        // ユーザーが入力・読み込んだ自社データに復帰する
+        function loadCustomData() {
+            if (customDataCache) {
+                appState = JSON.parse(JSON.stringify(customDataCache));
                 resetSimulation();
                 updateAllVisuals();
+                showToast("自社データに復帰しました。");
             }
+        }
+
+        // 入力・読み込み時にカスタムデータを記憶し、復帰ボタンを表示する
+        function saveCustomDataCache() {
+            customDataCache = JSON.parse(JSON.stringify(appState));
+            const btn = document.getElementById('btnLoadedCustomData');
+            if (btn) btn.classList.remove('hidden');
         }
 
         function switchPlMode(mode) {
@@ -1794,6 +1808,8 @@
             targetData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
             targetData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
 
+            saveCustomDataCache(); // 変更をカスタムデータとして記憶
+
             toggleEditModal();
             resetSimulation();
             updateAllVisuals();
@@ -1843,10 +1859,7 @@
                 appState.currentPeriod = parseResult.data;
                 appState.companyName = parseResult.companyName;
                 
-                uploadedPdfData = JSON.parse(JSON.stringify(appState));
-
-                const btnPdf = document.getElementById('btnLoadedPdf');
-                if (btnPdf) btnPdf.classList.remove('hidden');
+                saveCustomDataCache(); // PDF解析結果を記憶
 
                 alertText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i> PDF「${file.name}」の解析が完了しました。手入力ダイアログから調整できます。`;
                 
@@ -1867,25 +1880,35 @@
 
         // Japanese Financial Text Extraction Helper Engine
         function processFinancialText(rawText, defaultName) {
+            // 空白・改行を完全に除去したテキスト（PDF特有の文字間隔バラけ対策）
+            const noSpaceText = rawText.replace(/[\s\n\r\t　]/g, '');
+
             // Detect Unit (単位)
             let multiplier = 1; // Default assumes Millions (百万円)
             let unitDetected = "百万円（推定）";
 
-            if (/単位[\s:：]*千円/i.test(rawText) || /（千円）/.test(rawText)) {
+            if (/単位[\s:：]*千円/i.test(rawText) || /（千円）/.test(rawText) || /単位:千円/.test(noSpaceText)) {
                 multiplier = 0.001; // Convert Thousand Yen -> Million Yen
                 unitDetected = "千円 (1/1000に自動換算)";
-            } else if (/単位[\s:：]*円/i.test(rawText) || /（円）/.test(rawText)) {
+            } else if (/単位[\s:：]*円/i.test(rawText) || /（円）/.test(rawText) || /\(単位:円\)/.test(noSpaceText) || /単位:円/.test(noSpaceText)) {
                 multiplier = 0.000001; // Convert Yen -> Million Yen
                 unitDetected = "円 (1/1000000に自動換算)";
-            } else if (/単位[\s:：]*百万円/i.test(rawText) || /（百万円）/.test(rawText)) {
+            } else if (/単位[\s:：]*百万円/i.test(rawText) || /（百万円）/.test(rawText) || /単位:百万円/.test(noSpaceText)) {
                 multiplier = 1;
                 unitDetected = "百万円";
             }
 
+            // Extract company name
+            let compName = defaultName;
+            const nameMatch = rawText.match(/(株式会社[\s　]*[^\s　\n]+|有限会社[\s　]*[^\s　\n]+|合同会社[\s　]*[^\s　\n]+)/);
+            if(nameMatch) {
+                compName = nameMatch[1].trim();
+            }
+
             // Extract numbers near key Japanese account keywords
             const findValue = (keywords) => {
+                // 1. まず元のテキストで正規表現検索
                 for (let kw of keywords) {
-                    // Match keyword followed by optional symbols and numeric digits with commas, minus △ ▲
                     const reg = new RegExp(`${kw}[\\s\\:：\\|\\t]*([△▲\\-]?\\s*[\\d,]+)`, 'i');
                     const match = rawText.match(reg);
                     if (match && match[1]) {
@@ -1896,28 +1919,47 @@
                         }
                     }
                 }
+                
+                // 2. ヒットしなければ、空白完全除去テキストで検索（PDF文字バラけ対策）
+                for (let kw of keywords) {
+                    const kwNoSpace = kw.replace(/[\s　]/g, '');
+                    const reg = new RegExp(`${kwNoSpace}[\\:：\\|]*([△▲\\-]?\\d[\\d,]*\\d?)`, 'i');
+                    const match = noSpaceText.match(reg);
+                    if (match && match[1]) {
+                        let numStr = match[1].replace(/[,]/g, '').replace(/[△▲]/g, '-');
+                        let val = parseFloat(numStr);
+                        if (!isNaN(val) && Math.abs(val) > 0) {
+                            return val * multiplier;
+                        }
+                    }
+                }
                 return null;
             };
 
-            const rev = findValue(['売上高', '営業収益', '売上収益', '完成工事高']) || 500;
-            const cost = findValue(['売上原価', '営業原価', '完成工事原価']) || Math.round(rev * 0.6);
-            const sga = findValue(['販売費及び一般管理費', '販管費', '販売費及び一般管理費合計']) || Math.round(rev * 0.25);
-            const taxes = findValue(['法人税等', '法人税、住民税及び事業税']) || Math.round((rev - cost - sga) * 0.3);
+            // 売上高はPDFの抽出ミスで「純高上売」などのように並び替わってしまうことがあるため広めに検知
+            let rev = findValue(['売上高', '純売上高', '売上収益', '営業収益', '完成工事高', '売上総利益']);
+            if (!rev) rev = 500;
 
-            const totalAssets = findValue(['資産合計', '資産の部合計', '総資産']) || 250;
-            const cash = findValue(['現金及び預金', '当座資産']) || Math.round(totalAssets * 0.5);
-            const inv = findValue(['棚卸資産', '商品及び製品', 'たな卸資産']) || Math.round(totalAssets * 0.1);
-            const fixed = findValue(['固定資産合計', '固定資産']) || (totalAssets - cash - inv);
+            const cost = findValue(['売上原価', '営業原価', '完成工事原価']) || 0; // KINARI様のような原価0のケースに対応
+            const sga = findValue(['販売費・一般管理費計', '販売費及び一般管理費計', '販売費及び一般管理費', '販管費', '販売費・一般管理費']) || Math.round((rev - cost) * 0.8);
+            const nonOpInc = findValue(['営業外収益計', '営業外収益']) || 0;
+            const extra = findValue(['特別利益計', '特別利益']) || 0;
+            const taxes = findValue(['法人税・住民税・事業税', '法人税等', '法人税、住民税及び事業税']) || Math.round((rev - cost - sga) * 0.3);
 
-            const equity = findValue(['純資産合計', '純資産の部合計', '株主資本合計', '自己資本']) || Math.round(totalAssets * 0.6);
-            const totalLiab = findValue(['負債合計', '負債の部合計']) || (totalAssets - equity);
-            const currLiab = findValue(['流動負債合計', '流動負債']) || Math.round(totalLiab * 0.7);
-            const fixedLiab = totalLiab - currLiab;
+            const totalAssets = findValue(['資産の部合計', '資産合計', '総資産']) || 250;
+            const cash = findValue(['当座資産計', '現金預金計', '現金及び預金', '現金預金', '当座資産']) || Math.round(totalAssets * 0.5);
+            const inv = findValue(['棚卸資産計', '棚卸資産', '商品及び製品', 'たな卸資産']) || 0;
+            const fixed = findValue(['固定資産計', '固定資産合計', '固定資産']) || (totalAssets - cash - inv);
+
+            const equity = findValue(['純資産の部計', '純資産合計', '純資産の部合計', '株主資本合計', '自己資本合計', '自己資本']) || Math.round(totalAssets * 0.6);
+            const totalLiab = findValue(['負債の部合計', '負債合計', '負債計']) || (totalAssets - equity);
+            const currLiab = findValue(['流動負債計', '流動負債合計', '流動負債']) || Math.round(totalLiab * 0.7);
+            const fixedLiab = findValue(['固定負債計', '固定負債合計', '固定負債']) || (totalLiab - currLiab);
 
             return {
                 unitDetected,
                 totalAssets,
-                companyName: defaultName,
+                companyName: compName,
                 data: {
                     bs: {
                         cashEquiv: Math.max(0, cash),
@@ -1931,8 +1973,8 @@
                         revenue: Math.max(0, rev),
                         costOfSales: Math.max(0, cost),
                         sga: Math.max(0, sga),
-                        nonOpIncome: 0,
-                        extraordinary: 0,
+                        nonOpIncome: nonOpInc,
+                        extraordinary: extra,
                         taxes: Math.max(0, taxes)
                     }
                 }
@@ -1946,6 +1988,8 @@
             const parseResult = processFinancialText(rawText, 'テキスト解析企業');
             appState.currentPeriod = parseResult.data;
             appState.companyName = parseResult.companyName;
+
+            saveCustomDataCache(); // テキスト解析結果を記憶
 
             togglePasteModal();
             resetSimulation();
