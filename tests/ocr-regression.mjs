@@ -77,4 +77,3 @@ const mismatches = Object.entries(expected)
 
 assert.deepEqual(mismatches, [], `OCR regression mismatches:\n${JSON.stringify(mismatches, null, 2)}`);
 console.log('OCR regression passed:', JSON.stringify(expected));
-
