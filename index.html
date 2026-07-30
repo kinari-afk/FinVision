@@ -1228,14 +1228,6 @@
             }
         }
 
-        function loadUploadedPdfData() {
-            if (uploadedPdfData) {
-                financialData = JSON.parse(JSON.stringify(uploadedPdfData));
-                resetSimulation();
-                updateAllVisuals();
-            }
-        }
-
         function switchPlMode(mode) {
             plViewMode = mode;
             const btnBlock = document.getElementById('btnPlModeBlock');
@@ -2103,7 +2095,7 @@
             const invTurnoverMonths = pl.revenue > 0 ? (bs.inventory / (pl.revenue / 12)) : 0;
             const finLeverage = bs.equity > 0 ? totalAssets / bs.equity : 0;
 
-            document.getElementById('pdfReportCompanyName').textContent = financialData.companyName || '対象企業';
+            document.getElementById('pdfReportCompanyName').textContent = appState.companyName || '対象企業';
             document.getElementById('pdfReportDate').textContent = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
             document.getElementById('pdfKpiAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
