@@ -63,6 +63,16 @@
                 </div>
             </div>
 
+            <!-- Global View Mode Toggle (Single vs Comparison) -->
+            <div class="flex items-center bg-indigo-950 rounded-lg p-1 border border-indigo-800">
+                <button id="btnViewSingle" onclick="switchGlobalView('single')" class="px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition">
+                    <i class="fa-solid fa-square mr-1"></i> 単月/単期
+                </button>
+                <button id="btnViewCompare" onclick="switchGlobalView('compare')" class="px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition">
+                    <i class="fa-solid fa-code-compare mr-1"></i> 期間比較
+                </button>
+            </div>
+
             <!-- Quick Presets -->
             <div class="flex items-center space-x-2 overflow-x-auto py-1">
                 <button id="btnLoadedPdf" onclick="loadUploadedPdfData()" class="hidden px-3 py-1.5 text-xs bg-rose-700 hover:bg-rose-600 text-white rounded-md transition flex items-center gap-1 border border-rose-500 font-bold whitespace-nowrap shadow-sm">
@@ -135,7 +145,9 @@
                     <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">対象企業 / 業界モデル</span>
                     <h3 id="displayCompanyName" class="text-xl font-bold text-slate-800">あおぞら訪問看護ステーション（医療・ヘルスケアモデル）</h3>
                 </div>
-                <div class="flex gap-6 text-sm">
+                
+                <!-- Single Period KPIs -->
+                <div id="kpiSingle" class="flex gap-6 text-sm">
                     <div>
                         <span class="text-xs text-slate-500 block">総資産</span>
                         <span id="displayTotalAssets" class="font-bold text-slate-800 text-base">¥250M</span>
@@ -151,6 +163,24 @@
                     <div>
                         <span class="text-xs text-slate-500 block">自己資本比率</span>
                         <span id="displayEquityRatio" class="font-bold text-indigo-600 text-base">60.0%</span>
+                    </div>
+                </div>
+
+                <!-- Comparison KPIs (Hidden by default) -->
+                <div id="kpiCompare" class="hidden flex gap-4 text-sm bg-white p-2 rounded border border-slate-200 shadow-sm">
+                    <div class="border-r pr-4">
+                        <span class="text-[10px] text-slate-500 block font-bold">売上高 変動</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="cmpRevCurrent" class="font-bold text-slate-800 text-base">¥500M</span>
+                            <span id="cmpRevDiff" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1 rounded"><i class="fa-solid fa-caret-up"></i> +10%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block font-bold">営業利益 変動</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="cmpOpCurrent" class="font-bold text-slate-800 text-base">¥70M</span>
+                            <span id="cmpOpDiff" class="text-xs font-bold text-rose-600 bg-rose-50 px-1 rounded"><i class="fa-solid fa-caret-down"></i> -5%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -225,49 +255,75 @@
                             <i class="fa-solid fa-scale-balanced text-indigo-600"></i>
                             貸借対照表 (B/S) 構造図解
                         </h3>
-                        <span class="text-xs bg-indigo-100 text-indigo-800 font-medium px-2.5 py-0.5 rounded">左: 運用 / 右: 調達</span>
+                        <div class="flex items-center gap-2">
+                            <span id="bsPeriodLabelPrev" class="hidden text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">前期</span>
+                            <span id="bsPeriodLabelCurr" class="hidden text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">当期</span>
+                            <span id="bsLabelSingle" class="text-xs bg-indigo-100 text-indigo-800 font-medium px-2.5 py-0.5 rounded">左: 運用 / 右: 調達</span>
+                        </div>
                     </div>
 
                     <!-- B/S Interactive Diagram Container -->
-                    <div class="grid grid-cols-2 gap-3 h-[380px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs">
-                        <!-- Left: Assets Side -->
-                        <div class="flex flex-col h-full gap-1">
-                            <!-- Current Assets (流動資産) -->
-                            <div id="boxCurrentAssets" class="bs-box bg-sky-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-bolt text-sky-200 mr-1"></i>流動資産</span>
-                                    <span id="valCurrentAssets">¥220M</span>
+                    <div id="bsDiagramContainer" class="grid gap-3 h-[380px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all">
+                        
+                        <!-- PREVIOUS PERIOD B/S (Hidden in single mode) -->
+                        <div id="bsPrevPeriod" class="hidden grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity">
+                            <!-- Left: Assets Side -->
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="prevBoxCurrentAssets" class="bs-box bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>流動資産</span><span id="prevValCurrentAssets">¥0M</span></div>
                                 </div>
-                                <div class="text-[11px] text-sky-100 space-y-0.5 z-10">
-                                    <div class="flex justify-between"><span>当座資産:</span> <span id="valCashEquiv">¥210M</span></div>
-                                    <div class="flex justify-between"><span>棚卸資産:</span> <span id="valInventory">¥10M</span></div>
+                                <div id="prevBoxFixedAssets" class="bs-box bg-indigo-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>固定資産</span><span id="prevValFixedAssets">¥0M</span></div>
                                 </div>
-                                <span class="text-[10px] text-sky-200 self-end font-semibold" id="pctCurrentAssets">88.0%</span>
                             </div>
-
-                            <!-- Non-Current / Fixed Assets (固定資産) -->
-                            <div id="boxFixedAssets" class="bs-box bg-indigo-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-building text-indigo-300 mr-1"></i>固定資産</span>
-                                    <span id="valFixedAssets">¥30M</span>
+                            <!-- Right: Liab & Eq Side -->
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="prevBoxCurrentLiabilities" class="bs-box bg-amber-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 25%;">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>流動負債</span><span id="prevValCurrentLiabilities">¥0M</span></div>
                                 </div>
-                                <div class="text-[11px] text-indigo-100 space-y-0.5">
-                                    <div class="flex justify-between"><span>有形・無形・投資等</span></div>
+                                <div id="prevBoxFixedLiabilities" class="bs-box bg-orange-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 15%;">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>固定負債</span><span id="prevValFixedLiabilities">¥0M</span></div>
                                 </div>
-                                <span class="text-[10px] text-indigo-200 self-end font-semibold" id="pctFixedAssets">12.0%</span>
+                                <div id="prevBoxEquity" class="bs-box bg-emerald-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 60%;">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>純資産</span><span id="prevValEquity">¥0M</span></div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Right: Liabilities & Equity Side -->
-                        <div class="flex flex-col h-full gap-1">
-                            <!-- Current Liabilities (流動負債) -->
-                            <div id="boxCurrentLiabilities" class="bs-box bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 25%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-clock text-amber-200 mr-1"></i>流動負債</span>
-                                    <span id="valCurrentLiabilities">¥80M</span>
+                        <!-- CURRENT PERIOD B/S (Default Single View) -->
+                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-3 h-full">
+                            <!-- Left: Assets Side -->
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="boxCurrentAssets" class="bs-box bg-sky-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
+                                    <div class="font-bold flex justify-between items-center">
+                                        <span><i class="fa-solid fa-money-bill-wave text-sky-200 mr-1"></i>流動資産</span>
+                                        <span id="valCurrentAssets">¥0M</span>
+                                    </div>
+                                    <div class="text-[11px] text-sky-100 flex flex-col gap-0.5 mt-1">
+                                        <div class="flex justify-between"><span>当座(現預金等):</span><span id="valCashEquiv">¥0M</span></div>
+                                        <div class="flex justify-between"><span>棚卸(在庫等):</span><span id="valInventory">¥0M</span></div>
+                                    </div>
+                                    <span class="text-[10px] text-sky-200 self-end font-semibold mt-1" id="pctCurrentAssets">0%</span>
                                 </div>
-                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="pctCurrentLiabilities">32.0%</span>
+                                <div id="boxFixedAssets" class="bs-box bg-indigo-700 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
+                                    <div class="font-bold flex justify-between items-center">
+                                        <span><i class="fa-solid fa-building text-indigo-300 mr-1"></i>固定資産</span>
+                                        <span id="valFixedAssets">¥0M</span>
+                                    </div>
+                                    <span class="text-[10px] text-indigo-300 self-end font-semibold" id="pctFixedAssets">0%</span>
+                                </div>
                             </div>
+                            
+                            <!-- Right: Liab & Eq Side -->
+                            <div class="flex flex-col h-full gap-1">
+                                <!-- Current Liabilities -->
+                                <div id="boxCurrentLiabilities" class="bs-box bg-amber-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 25%;">
+                                    <div class="font-bold flex justify-between items-center">
+                                        <span><i class="fa-solid fa-file-invoice text-amber-200 mr-1"></i>流動負債</span>
+                                        <span id="valCurrentLiabilities">¥0M</span>
+                                    </div>
+                                    <span class="text-[10px] text-amber-100 self-end font-semibold" id="pctCurrentLiabilities">0%</span>
+                                </div>
 
                             <!-- Fixed Liabilities (固定負債) -->
                             <div id="boxFixedLiabilities" class="bs-box bg-orange-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 15%;">
@@ -379,8 +435,8 @@
                         </div>
                     </div>
 
-                    <!-- View Mode 2: Waterfall Chart -->
-                    <div id="viewPlWaterfall" class="h-[380px] w-full relative hidden">
+                    <!-- View Mode 2: Waterfall / Comparison Chart -->
+                    <div id="viewPlWaterfall" class="h-[380px] w-full relative hidden bg-slate-50 p-2 rounded-xl border border-slate-200">
                         <canvas id="plWaterfallChart"></canvas>
                     </div>
                 </div>
@@ -568,7 +624,7 @@
 
             <form onsubmit="saveManualData(event)" class="space-y-4 text-xs">
                 <!-- Company Name & Unit Selection -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div class="md:col-span-2">
                         <label class="font-bold text-slate-700 block mb-1">対象企業名 / 組織名</label>
                         <input type="text" id="inputCompanyName" required class="w-full border border-slate-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -579,6 +635,13 @@
                             <option value="1">百万円 (そのままとする)</option>
                             <option value="1000">千円 (百万円に自動変換)</option>
                             <option value="1000000">円 (百万円に自動変換)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-bold text-indigo-700 block mb-1"><i class="fa-solid fa-clock-rotate-left"></i> 対象期間選択</label>
+                        <select id="inputPeriodTarget" onchange="loadPeriodDataToModal()" class="w-full border border-indigo-300 rounded px-2.5 py-1.5 bg-indigo-50 focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-900">
+                            <option value="current">当期 (最新)</option>
+                            <option value="previous">前期 (比較用)</option>
                         </select>
                     </div>
                 </div>
@@ -853,24 +916,18 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         }
 
-        // Global State Object (Standard unit is Million Yen - 百万円)
-        let financialData = {
+        // Global State Object (Supports multiple periods)
+        let appState = {
+            viewMode: 'single', // 'single' or 'compare'
             companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
-            bs: {
-                cashEquiv: 210,     // 当座資産
-                inventory: 10,      // 棚卸資産
-                fixedAssets: 30,    // 固定資産
-                currentLiabilities: 80, // 流動負債
-                fixedLiabilities: 20,   // 固定負債
-                equity: 150         // 純資産
+            currentPeriod: {
+                bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
+                pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
             },
-            pl: {
-                revenue: 500,       // 売上高
-                costOfSales: 320,   // 売上原価
-                sga: 110,           // 販管費
-                nonOpIncome: 5,     // 営業外損益
-                extraordinary: 0,   // 特別損益
-                taxes: 22           // 税金等
+            previousPeriod: {
+                // Initialize with some slightly worse data for comparison demo
+                bs: { cashEquiv: 180, inventory: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
+                pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
             }
         };
 
@@ -879,22 +936,40 @@
         let plViewMode = 'block';
         let plChart = null;
 
-        // Sample Datasets
+        // Sample Datasets (Updated to include previous period)
         const samplePresets = {
             kango: {
                 companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
-                bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
-                pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
+                currentPeriod: {
+                    bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
+                    pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 180, inventory: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
+                    pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
+                }
             },
             daikichi: {
                 companyName: '株式会社エンパワー / 買取大吉（リユース・買取専門店モデル）',
-                bs: { cashEquiv: 4200, inventory: 800, fixedAssets: 1000, currentLiabilities: 2000, fixedLiabilities: 800, equity: 3200 },
-                pl: { revenue: 12000, costOfSales: 9000, sga: 1800, nonOpIncome: 100, extraordinary: 0, taxes: 390 }
+                currentPeriod: {
+                    bs: { cashEquiv: 4200, inventory: 800, fixedAssets: 1000, currentLiabilities: 2000, fixedLiabilities: 800, equity: 3200 },
+                    pl: { revenue: 12000, costOfSales: 9000, sga: 1800, nonOpIncome: 100, extraordinary: 0, taxes: 390 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 3500, inventory: 950, fixedAssets: 1100, currentLiabilities: 2200, fixedLiabilities: 900, equity: 2450 },
+                    pl: { revenue: 10500, costOfSales: 8200, sga: 1700, nonOpIncome: 80, extraordinary: -50, taxes: 250 }
+                }
             },
             tech: {
                 companyName: 'テックイノベーションズ（SaaS・高収益モデル）',
-                bs: { cashEquiv: 6000, inventory: 200, fixedAssets: 1800, currentLiabilities: 1500, fixedLiabilities: 500, equity: 6000 },
-                pl: { revenue: 10000, costOfSales: 2000, sga: 5500, nonOpIncome: 50, extraordinary: 0, taxes: 750 }
+                currentPeriod: {
+                    bs: { cashEquiv: 6000, inventory: 200, fixedAssets: 1800, currentLiabilities: 1500, fixedLiabilities: 500, equity: 6000 },
+                    pl: { revenue: 10000, costOfSales: 2000, sga: 5500, nonOpIncome: 50, extraordinary: 0, taxes: 750 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 4500, inventory: 150, fixedAssets: 1200, currentLiabilities: 1800, fixedLiabilities: 600, equity: 3450 },
+                    pl: { revenue: 7000, costOfSales: 1600, sga: 4500, nonOpIncome: 20, extraordinary: 0, taxes: 270 }
+                }
             }
         };
 
@@ -903,10 +978,68 @@
             updateAllVisuals();
         };
 
+        function switchGlobalView(mode) {
+            appState.viewMode = mode;
+            const btnSingle = document.getElementById('btnViewSingle');
+            const btnCompare = document.getElementById('btnViewCompare');
+            
+            const bsContainer = document.getElementById('bsDiagramContainer');
+            const bsPrev = document.getElementById('bsPrevPeriod');
+            const bsLabelSingle = document.getElementById('bsLabelSingle');
+            const bsLabelPrev = document.getElementById('bsPeriodLabelPrev');
+            const bsLabelCurr = document.getElementById('bsPeriodLabelCurr');
+
+            const kpiSingle = document.getElementById('kpiSingle');
+            const kpiCompare = document.getElementById('kpiCompare');
+
+            if (mode === 'single') {
+                btnSingle.className = "px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition";
+                btnCompare.className = "px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition";
+                
+                bsContainer.classList.remove('grid-cols-2');
+                bsContainer.classList.add('grid-cols-1');
+                bsPrev.classList.add('hidden');
+                
+                bsLabelSingle.classList.remove('hidden');
+                bsLabelPrev.classList.add('hidden');
+                bsLabelCurr.classList.add('hidden');
+
+                kpiSingle.classList.remove('hidden');
+                kpiCompare.classList.add('hidden');
+
+            } else {
+                btnCompare.className = "px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition";
+                btnSingle.className = "px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition";
+                
+                bsContainer.classList.remove('grid-cols-1');
+                bsContainer.classList.add('grid-cols-2');
+                bsPrev.classList.remove('hidden');
+                
+                bsLabelSingle.classList.add('hidden');
+                bsLabelPrev.classList.remove('hidden');
+                bsLabelCurr.classList.remove('hidden');
+
+                kpiSingle.classList.add('hidden');
+                kpiCompare.classList.remove('hidden');
+            }
+            
+            updateAllVisuals();
+            if (plChart) plChart.update();
+        }
+
         // Load Preset
         function loadSampleData(key) {
             if (samplePresets[key]) {
-                financialData = JSON.parse(JSON.stringify(samplePresets[key]));
+                appState = { ...appState, ...JSON.parse(JSON.stringify(samplePresets[key])) };
+                resetSimulation();
+                updateAllVisuals();
+            }
+        }
+
+        function loadUploadedPdfData() {
+            if (uploadedPdfData) {
+                appState.currentPeriod = JSON.parse(JSON.stringify(uploadedPdfData.currentPeriod));
+                appState.companyName = uploadedPdfData.companyName;
                 resetSimulation();
                 updateAllVisuals();
             }
@@ -972,10 +1105,12 @@
 
         // Core Financial Calculator & Visual Render
         function updateAllVisuals() {
-            const bs = financialData.bs;
-            const pl = financialData.pl;
+            const bs = appState.currentPeriod.bs;
+            const pl = appState.currentPeriod.pl;
+            const pBs = appState.previousPeriod.bs;
+            const pPl = appState.previousPeriod.pl;
 
-            // Computed Values
+            // Computed Values Current
             const currentAssets = (bs.cashEquiv || 0) + (bs.inventory || 0);
             const totalAssets = currentAssets + (bs.fixedAssets || 0);
             const totalLiabilities = (bs.currentLiabilities || 0) + (bs.fixedLiabilities || 0);
@@ -987,8 +1122,15 @@
             const netProfitBeforeTax = recurringProfit + (pl.extraordinary || 0);
             const netProfit = netProfitBeforeTax - (pl.taxes || 0);
 
+            // Computed Values Previous
+            const pCurrentAssets = (pBs.cashEquiv || 0) + (pBs.inventory || 0);
+            const pTotalAssets = pCurrentAssets + (pBs.fixedAssets || 0);
+            const pGrossProfit = (pPl.revenue || 0) - (pPl.costOfSales || 0);
+            const pOperatingProfit = pGrossProfit - (pPl.sga || 0);
+            const pNetProfit = pOperatingProfit + pPl.nonOpIncome + pPl.extraordinary - pPl.taxes;
+
             // Header Displays
-            document.getElementById('displayCompanyName').textContent = financialData.companyName || '未設定企業';
+            document.getElementById('displayCompanyName').textContent = appState.companyName || '未設定企業';
             document.getElementById('displayTotalAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
             document.getElementById('displayRevenue').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
             document.getElementById('displayOperatingProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
@@ -996,7 +1138,23 @@
             const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
             document.getElementById('displayEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
 
-            // --- B/S Visual Diagram ---
+            // Comparison KPIs
+            const revDiffPct = pPl.revenue > 0 ? ((pl.revenue - pPl.revenue) / pPl.revenue) * 100 : 0;
+            const opDiffPct = pOperatingProfit > 0 ? ((operatingProfit - pOperatingProfit) / pOperatingProfit) * 100 : 0;
+            
+            document.getElementById('cmpRevCurrent').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
+            document.getElementById('cmpOpCurrent').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
+            
+            const renderDiff = (elId, diffPct) => {
+                const el = document.getElementById(elId);
+                const isPos = diffPct >= 0;
+                el.innerHTML = `<i class="fa-solid fa-caret-${isPos ? 'up' : 'down'}"></i> ${isPos ? '+' : ''}${diffPct.toFixed(1)}%`;
+                el.className = `text-xs font-bold px-1.5 py-0.5 rounded ${isPos ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`;
+            };
+            renderDiff('cmpRevDiff', revDiffPct);
+            renderDiff('cmpOpDiff', opDiffPct);
+
+            // --- B/S Visual Diagram (Current) ---
             document.getElementById('valCurrentAssets').textContent = `¥${Math.round(currentAssets).toLocaleString()}M`;
             document.getElementById('valCashEquiv').textContent = `¥${Math.round(bs.cashEquiv).toLocaleString()}M`;
             document.getElementById('valInventory').textContent = `¥${Math.round(bs.inventory).toLocaleString()}M`;
@@ -1023,6 +1181,43 @@
             document.getElementById('boxCurrentLiabilities').style.height = `${Math.max(5, pctCL)}%`;
             document.getElementById('boxFixedLiabilities').style.height = `${Math.max(5, pctFL)}%`;
             document.getElementById('boxEquity').style.height = `${Math.max(5, pctEq)}%`;
+
+            // --- B/S Visual Diagram (Previous - scaled relative to current assets if in compare mode) ---
+            if (appState.viewMode === 'compare') {
+                const maxAssets = Math.max(totalAssets, pTotalAssets, 1);
+                // Scale height based on total size relative to the largest period
+                const pScale = pTotalAssets / maxAssets;
+                const cScale = totalAssets / maxAssets;
+                
+                // Adjust container heights for visual scaling
+                document.getElementById('bsPrevPeriod').style.height = `${pScale * 100}%`;
+                document.getElementById('bsCurrPeriod').style.height = `${cScale * 100}%`;
+                // Align them to bottom
+                document.getElementById('bsDiagramContainer').classList.add('items-end');
+
+                const pPctCA = pTotalAssets > 0 ? (pCurrentAssets / pTotalAssets) * 100 : 0;
+                const pPctFA = pTotalAssets > 0 ? (pBs.fixedAssets / pTotalAssets) * 100 : 0;
+                const pPctCL = pTotalAssets > 0 ? (pBs.currentLiabilities / pTotalAssets) * 100 : 0;
+                const pPctFL = pTotalAssets > 0 ? (pBs.fixedLiabilities / pTotalAssets) * 100 : 0;
+                const pPctEq = pTotalAssets > 0 ? (pBs.equity / pTotalAssets) * 100 : 0;
+
+                document.getElementById('prevValCurrentAssets').textContent = `¥${Math.round(pCurrentAssets)}M`;
+                document.getElementById('prevValFixedAssets').textContent = `¥${Math.round(pBs.fixedAssets)}M`;
+                document.getElementById('prevValCurrentLiabilities').textContent = `¥${Math.round(pBs.currentLiabilities)}M`;
+                document.getElementById('prevValFixedLiabilities').textContent = `¥${Math.round(pBs.fixedLiabilities)}M`;
+                document.getElementById('prevValEquity').textContent = `¥${Math.round(pBs.equity)}M`;
+
+                document.getElementById('prevBoxCurrentAssets').style.height = `${Math.max(5, pPctCA)}%`;
+                document.getElementById('prevBoxFixedAssets').style.height = `${Math.max(5, pPctFA)}%`;
+                document.getElementById('prevBoxCurrentLiabilities').style.height = `${Math.max(5, pPctCL)}%`;
+                document.getElementById('prevBoxFixedLiabilities').style.height = `${Math.max(5, pPctFL)}%`;
+                document.getElementById('prevBoxEquity').style.height = `${Math.max(5, pPctEq)}%`;
+            } else {
+                document.getElementById('bsPrevPeriod').style.height = `100%`;
+                document.getElementById('bsCurrPeriod').style.height = `100%`;
+                document.getElementById('bsDiagramContainer').classList.remove('items-end');
+            }
+
 
             // Balance Check
             const bsCheckEl = document.getElementById('bsBalanceCheck');
@@ -1059,7 +1254,11 @@
             document.getElementById('plBlockPctNet').textContent = `${((netProfit / rev) * 100).toFixed(1)}%`;
             document.getElementById('plBlockNet').style.height = `${pctPlNet}%`;
 
-            updatePlWaterfallChart(pl.revenue, pl.costOfSales, grossProfit, pl.sga, operatingProfit, netProfit);
+            updatePlWaterfallChart(
+                appState.viewMode,
+                { rev: pl.revenue, cost: pl.costOfSales, gross: grossProfit, sga: pl.sga, op: operatingProfit, net: netProfit },
+                { rev: pPl.revenue, cost: pPl.costOfSales, gross: pGrossProfit, sga: pPl.sga, op: pOperatingProfit, net: pNetProfit }
+            );
 
             const opMargin = (operatingProfit / rev) * 100;
             const costRatio = (pl.costOfSales / rev) * 100;
@@ -1192,28 +1391,55 @@
                 data: {
                     labels: ['売上高', '売上原価', '売上総利益', '販管費', '営業利益', '当期純利益'],
                     datasets: [{
+                        label: '当期',
                         data: [0, 0, 0, 0, 0, 0],
-                        backgroundColor: ['#4f46e5', '#ef4444', '#0284c7', '#f59e0b', '#10b981', '#059669'],
-                        borderRadius: 6
+                        backgroundColor: '#4f46e5', // Indigo 600
+                        borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { 
+                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12 } } 
+                    },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
                         x: { grid: { display: false } }
                     }
                 }
             });
         }
 
-        function updatePlWaterfallChart(rev, cost, gross, sga, op, net) {
-            if (plChart) {
-                plChart.data.datasets[0].data = [Math.round(rev), Math.round(cost), Math.round(gross), Math.round(sga), Math.round(op), Math.round(net)];
-                plChart.update();
+        function updatePlWaterfallChart(mode, curr, prev) {
+            if (!plChart) return;
+
+            if (mode === 'single') {
+                plChart.data.datasets = [{
+                    label: '当期 (Waterfall)',
+                    data: [Math.round(curr.rev), Math.round(curr.cost), Math.round(curr.gross), Math.round(curr.sga), Math.round(curr.op), Math.round(curr.net)],
+                    backgroundColor: ['#4f46e5', '#ef4444', '#0284c7', '#f59e0b', '#10b981', '#059669'],
+                    borderRadius: 6
+                }];
+                plChart.options.plugins.legend.display = false;
+            } else {
+                plChart.data.datasets = [
+                    {
+                        label: '前期',
+                        data: [Math.round(prev.rev), Math.round(prev.cost), Math.round(prev.gross), Math.round(prev.sga), Math.round(prev.op), Math.round(prev.net)],
+                        backgroundColor: '#cbd5e1', // Slate 300
+                        borderRadius: 4
+                    },
+                    {
+                        label: '当期',
+                        data: [Math.round(curr.rev), Math.round(curr.cost), Math.round(curr.gross), Math.round(curr.sga), Math.round(curr.op), Math.round(curr.net)],
+                        backgroundColor: '#4f46e5', // Indigo 600
+                        borderRadius: 4
+                    }
+                ];
+                plChart.options.plugins.legend.display = true;
             }
+            plChart.update();
         }
 
         function runSimulation() {
@@ -1223,22 +1449,22 @@
             document.getElementById('labelRevSim').textContent = `${revSimPct > 0 ? '+' : ''}${revSimPct}%`;
             document.getElementById('labelCostSim').textContent = `${costSimPct > 0 ? '+' : ''}${costSimPct}%`;
 
-            const baseRev = financialData.pl.revenue;
-            const baseCostRatio = baseRev > 0 ? (financialData.pl.costOfSales / baseRev) * 100 : 0;
+            const baseRev = appState.currentPeriod.pl.revenue;
+            const baseCostRatio = baseRev > 0 ? (appState.currentPeriod.pl.costOfSales / baseRev) * 100 : 0;
 
             const simRev = baseRev * (1 + revSimPct / 100);
             const simCostRatio = Math.max(0, baseCostRatio + costSimPct);
             const simCost = simRev * (simCostRatio / 100);
-            const simSGA = financialData.pl.sga;
+            const simSGA = appState.currentPeriod.pl.sga;
             const simOpProfit = simRev - simCost - simSGA;
 
-            const baseOpProfit = baseRev - financialData.pl.costOfSales - simSGA;
+            const baseOpProfit = baseRev - appState.currentPeriod.pl.costOfSales - simSGA;
             const diffOp = simOpProfit - baseOpProfit;
 
             const approxNetProfit = simOpProfit * 0.7;
-            const simROE = financialData.bs.equity > 0 ? (approxNetProfit / financialData.bs.equity) * 100 : 0;
-            const baseNetProfit = baseOpProfit - financialData.pl.taxes;
-            const baseROE = financialData.bs.equity > 0 ? (baseNetProfit / financialData.bs.equity) * 100 : 0;
+            const simROE = appState.currentPeriod.bs.equity > 0 ? (approxNetProfit / appState.currentPeriod.bs.equity) * 100 : 0;
+            const baseNetProfit = baseOpProfit - appState.currentPeriod.pl.taxes;
+            const baseROE = appState.currentPeriod.bs.equity > 0 ? (baseNetProfit / appState.currentPeriod.bs.equity) * 100 : 0;
 
             document.getElementById('simOperatingProfit').textContent = `¥${Math.round(simOpProfit).toLocaleString()}M`;
             const simOpDiffEl = document.getElementById('simOpDiff');
@@ -1261,29 +1487,35 @@
         function toggleEditModal() {
             const modal = document.getElementById('editModal');
             if (modal.classList.contains('hidden')) {
-                // Populate current values
-                document.getElementById('inputCompanyName').value = financialData.companyName || '';
-                document.getElementById('inputCashEquiv').value = financialData.bs.cashEquiv;
-                document.getElementById('inputInventory').value = financialData.bs.inventory;
-                document.getElementById('inputFixedAssets').value = financialData.bs.fixedAssets;
-                document.getElementById('inputCurrentLiabilities').value = financialData.bs.currentLiabilities;
-                document.getElementById('inputFixedLiabilities').value = financialData.bs.fixedLiabilities;
-                document.getElementById('inputEquity').value = financialData.bs.equity;
-
-                document.getElementById('inputRevenue').value = financialData.pl.revenue;
-                document.getElementById('inputCostOfSales').value = financialData.pl.costOfSales;
-                document.getElementById('inputSGA').value = financialData.pl.sga;
-                document.getElementById('inputNonOpIncome').value = financialData.pl.nonOpIncome;
-                document.getElementById('inputExtraordinary').value = financialData.pl.extraordinary;
-                document.getElementById('inputTaxes').value = financialData.pl.taxes;
-
+                // Initialize modal target to current period
+                document.getElementById('inputPeriodTarget').value = 'current';
                 document.getElementById('inputUnit').value = "1";
                 convertUnitNotice();
-
+                loadPeriodDataToModal();
                 modal.classList.remove('hidden');
             } else {
                 modal.classList.add('hidden');
             }
+        }
+
+        function loadPeriodDataToModal() {
+            const target = document.getElementById('inputPeriodTarget').value;
+            const data = target === 'current' ? appState.currentPeriod : appState.previousPeriod;
+            
+            document.getElementById('inputCompanyName').value = appState.companyName || '';
+            document.getElementById('inputCashEquiv').value = data.bs.cashEquiv;
+            document.getElementById('inputInventory').value = data.bs.inventory;
+            document.getElementById('inputFixedAssets').value = data.bs.fixedAssets;
+            document.getElementById('inputCurrentLiabilities').value = data.bs.currentLiabilities;
+            document.getElementById('inputFixedLiabilities').value = data.bs.fixedLiabilities;
+            document.getElementById('inputEquity').value = data.bs.equity;
+
+            document.getElementById('inputRevenue').value = data.pl.revenue;
+            document.getElementById('inputCostOfSales').value = data.pl.costOfSales;
+            document.getElementById('inputSGA').value = data.pl.sga;
+            document.getElementById('inputNonOpIncome').value = data.pl.nonOpIncome;
+            document.getElementById('inputExtraordinary').value = data.pl.extraordinary;
+            document.getElementById('inputTaxes').value = data.pl.taxes;
         }
 
         function convertUnitNotice() {
@@ -1299,22 +1531,24 @@
         function saveManualData(event) {
             event.preventDefault();
             const unitDivider = parseFloat(document.getElementById('inputUnit').value) || 1;
+            const target = document.getElementById('inputPeriodTarget').value;
+            const targetData = target === 'current' ? appState.currentPeriod : appState.previousPeriod;
 
-            financialData.companyName = document.getElementById('inputCompanyName').value;
+            appState.companyName = document.getElementById('inputCompanyName').value;
 
-            financialData.bs.cashEquiv = (parseFloat(document.getElementById('inputCashEquiv').value) || 0) / unitDivider;
-            financialData.bs.inventory = (parseFloat(document.getElementById('inputInventory').value) || 0) / unitDivider;
-            financialData.bs.fixedAssets = (parseFloat(document.getElementById('inputFixedAssets').value) || 0) / unitDivider;
-            financialData.bs.currentLiabilities = (parseFloat(document.getElementById('inputCurrentLiabilities').value) || 0) / unitDivider;
-            financialData.bs.fixedLiabilities = (parseFloat(document.getElementById('inputFixedLiabilities').value) || 0) / unitDivider;
-            financialData.bs.equity = (parseFloat(document.getElementById('inputEquity').value) || 0) / unitDivider;
+            targetData.bs.cashEquiv = (parseFloat(document.getElementById('inputCashEquiv').value) || 0) / unitDivider;
+            targetData.bs.inventory = (parseFloat(document.getElementById('inputInventory').value) || 0) / unitDivider;
+            targetData.bs.fixedAssets = (parseFloat(document.getElementById('inputFixedAssets').value) || 0) / unitDivider;
+            targetData.bs.currentLiabilities = (parseFloat(document.getElementById('inputCurrentLiabilities').value) || 0) / unitDivider;
+            targetData.bs.fixedLiabilities = (parseFloat(document.getElementById('inputFixedLiabilities').value) || 0) / unitDivider;
+            targetData.bs.equity = (parseFloat(document.getElementById('inputEquity').value) || 0) / unitDivider;
 
-            financialData.pl.revenue = (parseFloat(document.getElementById('inputRevenue').value) || 0) / unitDivider;
-            financialData.pl.costOfSales = (parseFloat(document.getElementById('inputCostOfSales').value) || 0) / unitDivider;
-            financialData.pl.sga = (parseFloat(document.getElementById('inputSGA').value) || 0) / unitDivider;
-            financialData.pl.nonOpIncome = (parseFloat(document.getElementById('inputNonOpIncome').value) || 0) / unitDivider;
-            financialData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
-            financialData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
+            targetData.pl.revenue = (parseFloat(document.getElementById('inputRevenue').value) || 0) / unitDivider;
+            targetData.pl.costOfSales = (parseFloat(document.getElementById('inputCostOfSales').value) || 0) / unitDivider;
+            targetData.pl.sga = (parseFloat(document.getElementById('inputSGA').value) || 0) / unitDivider;
+            targetData.pl.nonOpIncome = (parseFloat(document.getElementById('inputNonOpIncome').value) || 0) / unitDivider;
+            targetData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
+            targetData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
 
             toggleEditModal();
             resetSimulation();
@@ -1358,8 +1592,11 @@
                 logs += `【抽出結果】: 売上高=¥${parseResult.data.pl.revenue}M, 資産合計=¥${parseResult.totalAssets}M, 純資産=¥${parseResult.data.bs.equity}M\n`;
                 logsBox.innerHTML = logs.replace(/\n/g, '<br>');
 
-                financialData = parseResult.data;
-                uploadedPdfData = JSON.parse(JSON.stringify(financialData));
+                // Assume uploaded PDF is current period. Keep previous period as is.
+                appState.currentPeriod = parseResult.data;
+                appState.companyName = parseResult.companyName;
+                
+                uploadedPdfData = JSON.parse(JSON.stringify(appState));
 
                 const btnPdf = document.getElementById('btnLoadedPdf');
                 if (btnPdf) btnPdf.classList.remove('hidden');
@@ -1428,8 +1665,8 @@
             return {
                 unitDetected,
                 totalAssets,
+                companyName: defaultName,
                 data: {
-                    companyName: defaultName,
                     bs: {
                         cashEquiv: Math.max(0, cash),
                         inventory: Math.max(0, inv),
@@ -1455,7 +1692,8 @@
             if (!rawText.trim()) return;
 
             const parseResult = processFinancialText(rawText, 'テキスト解析企業');
-            financialData = parseResult.data;
+            appState.currentPeriod = parseResult.data;
+            appState.companyName = parseResult.companyName;
 
             togglePasteModal();
             resetSimulation();
@@ -1468,12 +1706,15 @@
         }
 
         function togglePdfModal() {
+            // Re-render PDF data based on current period before showing
+            const bs = appState.currentPeriod.bs;
+            const pl = appState.currentPeriod.pl;
             document.getElementById('pdfExportModal').classList.toggle('hidden');
         }
 
         function exportPdfReport() {
-            const bs = financialData.bs;
-            const pl = financialData.pl;
+            const bs = appState.currentPeriod.bs;
+            const pl = appState.currentPeriod.pl;
 
             const currentAssets = bs.cashEquiv + bs.inventory;
             const totalAssets = currentAssets + bs.fixedAssets;
@@ -1539,7 +1780,7 @@
             document.getElementById('pdfDescProfit').textContent = document.getElementById('descProfitability').textContent;
             document.getElementById('pdfDescEfficiency').textContent = document.getElementById('descEfficiency').textContent;
 
-            let commentary = `対象「${financialData.companyName}」の財務評価: 自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% です。`;
+            let commentary = `対象「${appState.companyName}」の財務評価: 自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% です。`;
             if (opMargin >= 10 && equityRatio >= 50) {
                 commentary += "高い安全性を有し、かつ収益力も優秀です。自己資金による事業投資を安全に拡大できる体質を持っています。";
             } else if (equityRatio >= 40) {
@@ -1554,7 +1795,7 @@
 
         function downloadPdfNow() {
             const reportEl = document.getElementById('pdfReportContent');
-            const cleanName = (financialData.companyName || '企業').replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '_');
+            const cleanName = (appState.companyName || '企業').replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '_');
             const opt = {
                 margin: [8, 8, 8, 8],
                 filename: `FinVision_財務診断レポート_${cleanName}.pdf`,
