@@ -110,7 +110,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <button onclick="togglePdfModal()" class="text-xs font-bold bg-white text-indigo-900 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition shadow-sm flex items-center gap-1.5">
+                <button onclick="exportPdfReport()" class="text-xs font-bold bg-white text-indigo-900 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition shadow-sm flex items-center gap-1.5">
                     <i class="fa-solid fa-file-pdf text-red-600"></i> レポート出力
                 </button>
             </div>
@@ -149,12 +149,50 @@
             </div>
         </div>
 
+        <!-- 決算書PDF 読込ゾーン（テキストPDF／スキャンPDF(OCR)の両対応） -->
+        <div id="pdfDropZone" class="bg-white border-2 border-dashed border-indigo-300 rounded-xl p-4 shadow-sm transition-colors">
+            <input type="file" id="pdfFileInput" accept="application/pdf,.pdf" class="hidden" onchange="handlePdfUpload(event)">
+            <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+                <div class="flex items-start gap-3 flex-grow">
+                    <div class="bg-indigo-50 text-indigo-600 rounded-lg p-2.5 shrink-0">
+                        <i class="fa-solid fa-file-arrow-up text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="font-bold text-sm text-slate-800">決算報告書PDFを読み込む</div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                            貸借対照表・損益計算書・販売費内訳を自動抽出します。ここにPDFを<strong>ドラッグ＆ドロップ</strong>するか、右のボタンで選択してください。<br class="hidden sm:block">
+                            <span class="text-indigo-700 font-semibold">複合機でスキャンした画像PDF（文字情報なし）も、OCRで自動読み取りします。</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                        <label for="ocrMaxPages" class="text-[10px] font-bold text-slate-500 whitespace-nowrap"><i class="fa-solid fa-layer-group"></i> 解析上限</label>
+                        <select id="ocrMaxPages" class="text-[11px] bg-transparent font-bold text-slate-700 focus:outline-none">
+                            <option value="6">6ページ</option>
+                            <option value="10" selected>10ページ</option>
+                            <option value="16">16ページ</option>
+                            <option value="30">全ページ</option>
+                        </select>
+                    </div>
+                    <button onclick="document.getElementById('pdfFileInput').click()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg font-bold transition shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-folder-open mr-1"></i> PDFファイルを選択
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- File Upload Status -->
         <div id="pdfStatusAlert" class="hidden bg-sky-50 border border-sky-200 p-3 rounded-lg text-xs text-sky-800 flex justify-between items-start shadow-sm">
             <div id="pdfStatusText" class="font-medium"></div>
-            <button onclick="closePdfStatus()" class="text-sky-500 hover:text-sky-700"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="closePdfStatus()" class="text-sky-500 hover:text-sky-700 ml-3 shrink-0"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div id="pdfParsingLogs" class="hidden bg-slate-800 text-sky-300 font-mono text-[10px] p-3 rounded-lg mt-2 h-24 overflow-y-auto"></div>
+        <div id="pdfProgressWrap" class="hidden">
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div id="pdfProgressBar" class="bg-indigo-600 h-1.5 rounded-full transition-all" style="width:0%"></div>
+            </div>
+        </div>
+        <div id="pdfParsingLogs" class="hidden bg-slate-800 text-sky-300 font-mono text-[10px] p-3 rounded-lg mt-2 h-32 overflow-y-auto whitespace-pre-wrap"></div>
 
         <!-- Main KPI & Diagrams -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
@@ -164,7 +202,7 @@
                 <div>
                     <h2 id="displayCompanyName" class="text-xl font-extrabold text-slate-900 tracking-tight">未設定企業</h2>
                     <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
-                        <span><i class="fa-solid fa-calendar-check text-slate-400"></i> 最新決算期</span>
+                        <span><i class="fa-solid fa-calendar-check text-slate-400"></i> <span id="displayPeriodLabel">最新決算期</span></span>
                         <span class="bg-slate-100 px-2 py-0.5 rounded">単位: 百万円</span>
                         <button onclick="toggleRawDataDrawer()" class="text-indigo-600 hover:underline font-bold"><i class="fa-solid fa-table"></i> 読込数値一覧表</button>
                     </p>
@@ -277,8 +315,9 @@
                                 <div id="boxCurrentAssets" class="bg-sky-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] relative">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="valCurrentAssets">¥0M</span></div>
                                     <div class="text-[10px] text-sky-200 mt-1 space-y-0.5 hidden sm:block">
-                                        <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【現預金等】すぐに使えるお金。会社の血液のようなものです。多ければ安全ですが、多すぎると投資に回せていないとも言えます。">現預金等</span><span id="valCashEquiv">¥0M</span></div>
+                                        <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【当座資産】現預金・売掛金など、在庫を除いた確実にすぐ現金になる資産です。">当座資産</span><span id="valCashEquiv">¥0M</span></div>
                                         <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【棚卸資産(在庫)】売るために持っている商品や材料。長期間売れないと価値が下がる危険があります。">棚卸資産</span><span id="valInventory">¥0M</span></div>
+                                        <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【その他流動資産】前払費用・未収入金など。介護・医療報酬の未収入金（国保連からの入金待ち）もここに含まれます。">その他流動資産</span><span id="valOtherCurrentAssets">¥0M</span></div>
                                     </div>
                                     <span class="text-[10px] text-sky-100 self-end font-semibold mt-auto" id="pctCurrentAssets">0%</span>
                                 </div>
@@ -400,6 +439,39 @@
                                 <span id="valRatioEquity" class="font-bold text-slate-800 text-sm">60.0%</span>
                             </li>
                             <li class="flex justify-between items-center">
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【固定資産への投資が身の丈に合っているか】長く使う資産を、返済不要の自己資本でどれだけ賄えているか。100%以下が理想です。">固定比率</span>
+                                <span id="valRatioFixed" class="font-bold text-slate-800 text-sm">20.0%</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 leading-relaxed" id="descSafety">
+                        流動比率・自己資本比率ともに高水準です。
+                    </div>
+                </div>
+
+                <!-- 2. Profitability Card -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-trend-up text-indigo-600"></i> 収益性分析
+                            </h4>
+                            <span id="badgeProfitability" class="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800">高収益</span>
+                        </div>
+                        <ul class="space-y-3 text-xs">
+                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【本業の稼ぐ力】売上高に対する営業利益の割合。本業でどれだけ効率よく儲けているかを示します。">営業利益率</span>
+                                <span id="valRatioOpMargin" class="font-bold text-slate-800 text-sm">14.0%</span>
+                            </li>
+                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【ROA／総資産利益率】会社の全財産を使って、どれだけ最終利益を生み出せたか。資産の稼ぐ力です。">ROA (総資産利益率)</span>
+                                <span id="valRatioROA" class="font-bold text-slate-800 text-sm">21.2%</span>
+                            </li>
+                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【ROE／自己資本利益率】株主・経営者が出したお金が、どれだけ利益を生んだか。投資効率の指標です。">ROE (自己資本利益率)</span>
+                                <span id="valRatioROE" class="font-bold text-slate-800 text-sm">35.3%</span>
+                            </li>
+                            <li class="flex justify-between items-center">
                                 <span class="text-slate-600 tooltip-trigger" data-tooltip="【最終的な利益率】売上高に対して、すべての費用や税金を引いたあとに残る最終利益の割合です。">売上高当期純利益率</span>
                                 <span id="valRatioNetMargin" class="font-bold text-slate-800 text-sm">10.6%</span>
                             </li>
@@ -519,6 +591,51 @@
             </div>
             <!-- ★ 新機能追加ここまで -->
 
+        </div>
+
+        <!-- 販管費内訳の可視化（PDF読込時のみ表示） -->
+        <div id="sgaBreakdownSection" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4 border-b pb-3">
+                <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-chart-simple text-amber-600"></i>
+                    販売費及び一般管理費の内訳分析
+                </h3>
+                <span id="sgaBreakdownMeta" class="text-[11px] text-slate-500"></span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="h-[320px] relative">
+                    <canvas id="sgaChart"></canvas>
+                </div>
+                <div>
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <div class="bg-rose-50 border border-rose-200 rounded-lg p-2.5 text-center">
+                            <span class="text-[10px] font-bold text-rose-700 block tooltip-trigger" data-tooltip="【人件費率】売上高に対する人件費（役員報酬・給与手当・賞与・法定福利費など）の割合。訪問看護・介護事業では最重要コスト指標です。">人件費率</span>
+                            <span id="sgaLaborRatio" class="text-lg font-bold text-rose-900">0%</span>
+                        </div>
+                        <div class="bg-sky-50 border border-sky-200 rounded-lg p-2.5 text-center">
+                            <span class="text-[10px] font-bold text-sky-700 block">人件費 合計</span>
+                            <span id="sgaLaborTotal" class="text-lg font-bold text-sky-900">¥0M</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
+                            <span class="text-[10px] font-bold text-slate-600 block">検出科目数</span>
+                            <span id="sgaItemCount" class="text-lg font-bold text-slate-800">0</span>
+                        </div>
+                    </div>
+                    <div class="max-h-[240px] overflow-y-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-[11px]">
+                            <thead class="bg-slate-100 sticky top-0">
+                                <tr class="text-slate-600">
+                                    <th class="px-2 py-1.5 text-left font-bold">科目</th>
+                                    <th class="px-2 py-1.5 text-right font-bold">金額</th>
+                                    <th class="px-2 py-1.5 text-right font-bold">売上比</th>
+                                    <th class="px-2 py-1.5 text-right font-bold">販管費比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sgaTableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Financial Simulation Tool & Goal Seek -->
@@ -700,8 +817,16 @@
                                     <input type="number" step="any" id="inputCashEquiv" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
                                 </div>
                                 <div>
+                                    <label class="block text-slate-600">うち現預金 <span class="text-slate-400">（資金繰り診断に使用・空欄可）</span></label>
+                                    <input type="number" step="any" id="inputCash" class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
                                     <label class="block text-slate-600">棚卸資産（商品・製品・資材等）</label>
                                     <input type="number" step="any" id="inputInventory" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-600">その他流動資産（前払費用・未収入金等）</label>
+                                    <input type="number" step="any" id="inputOtherCurrentAssets" class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
                                 </div>
                                 <div>
                                     <label class="block text-slate-600">固定資産（設備・不動産・投資等）</label>
@@ -812,6 +937,80 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 抽出結果レビュー・修正モーダル（PDF/OCR読込後に必ず表示） -->
+    <div id="reviewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto border border-slate-200">
+            <div class="flex justify-between items-start border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                        抽出結果の確認・修正
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mt-1">
+                        PDFから読み取った金額です。<strong>反映する前に必ず決算書と見比べて確認してください。</strong>
+                        誤りがあればその場で修正できます（入力は<span id="reviewUnitLabel" class="font-bold text-indigo-700">円</span>単位）。
+                    </p>
+                </div>
+                <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 text-xl ml-3"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                    <span class="text-[10px] font-bold text-slate-500 block">企業名</span>
+                    <input type="text" id="reviewCompanyName" class="w-full bg-transparent font-bold text-slate-800 focus:outline-none border-b border-dashed border-slate-300">
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                    <span class="text-[10px] font-bold text-slate-500 block">会計期間</span>
+                    <span id="reviewPeriod" class="font-bold text-slate-800">—</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                    <span class="text-[10px] font-bold text-slate-500 block">読取方式 / 単位</span>
+                    <span id="reviewSource" class="font-bold text-slate-800">—</span>
+                </div>
+            </div>
+
+            <div id="reviewWarnings" class="hidden text-[11px] space-y-1.5"></div>
+
+            <div>
+                <label class="text-[11px] font-bold text-indigo-700 block mb-1"><i class="fa-solid fa-clock-rotate-left"></i> この数値を反映する対象期間</label>
+                <select id="reviewPeriodTarget" class="w-full sm:w-64 border border-indigo-300 rounded px-2.5 py-1.5 bg-indigo-50 focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-900 text-xs">
+                    <option value="current">当期 (最新) として反映</option>
+                    <option value="previous">前期 (比較用) として反映</option>
+                </select>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <table class="w-full text-[11px]">
+                    <thead class="bg-slate-100">
+                        <tr class="text-slate-600">
+                            <th class="px-2.5 py-2 text-left font-bold">科目</th>
+                            <th class="px-2.5 py-2 text-left font-bold">検出した行</th>
+                            <th class="px-2.5 py-2 text-right font-bold">金額（原単位）</th>
+                            <th class="px-2.5 py-2 text-center font-bold">出所</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviewTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div id="reviewBalanceCheck" class="text-xs font-bold p-2.5 rounded-lg border"></div>
+
+            <div class="flex justify-between items-center gap-2 pt-1">
+                <button type="button" onclick="toggleRawText()" class="text-[11px] text-slate-500 hover:text-slate-800 underline">
+                    <i class="fa-solid fa-file-lines"></i> 読み取った生テキストを表示
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeReviewModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium">キャンセル</button>
+                    <button type="button" onclick="applyReviewedData()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md">
+                        <i class="fa-solid fa-check mr-1"></i> この内容で反映・図解する
+                    </button>
+                </div>
+            </div>
+
+            <pre id="reviewRawText" class="hidden bg-slate-900 text-slate-300 text-[10px] p-3 rounded-lg max-h-56 overflow-auto whitespace-pre-wrap"></pre>
         </div>
     </div>
 
@@ -970,19 +1169,50 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         }
 
+        // 安全なDOMアクセスヘルパー
+        // （※以前はHTMLに存在しないIDを直接参照して updateAllVisuals() が途中で例外停止し、
+        //   ダッシュボード後半がまったく更新されない不具合があったため導入）
+        const $ = (id) => document.getElementById(id);
+        function setText(id, value) {
+            const el = $(id);
+            if (el) el.textContent = value;
+            return el;
+        }
+        function setHtml(id, value) {
+            const el = $(id);
+            if (el) el.innerHTML = value;
+            return el;
+        }
+
+        // B/S の1期分の初期値を生成（新規フィールド追加時の後方互換用）
+        function emptyBs() {
+            return { cashEquiv: 0, cash: null, inventory: 0, otherCurrentAssets: 0, fixedAssets: 0, currentLiabilities: 0, fixedLiabilities: 0, equity: 0 };
+        }
+        function emptyPl() {
+            return { revenue: 0, costOfSales: 0, sga: 0, nonOpIncome: 0, extraordinary: 0, taxes: 0 };
+        }
+        // 旧形式データ（otherCurrentAssets / cash なし）を読み込んでも壊れないよう補完する
+        function normalizePeriod(period) {
+            const p = period || {};
+            return { bs: { ...emptyBs(), ...(p.bs || {}) }, pl: { ...emptyPl(), ...(p.pl || {}) } };
+        }
+
         // Global State Object (Supports multiple periods)
         let appState = {
             viewMode: 'single', // 'single' or 'compare'
             companyName: 'サンプル訪問看護ステーション（医療・ヘルスケアモデル）',
             currentPeriod: {
-                bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
+                bs: { cashEquiv: 210, cash: 200, inventory: 10, otherCurrentAssets: 0, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
                 pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
             },
             previousPeriod: {
                 // Initialize with some slightly worse data for comparison demo
-                bs: { cashEquiv: 180, inventory: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
+                bs: { cashEquiv: 180, cash: 170, inventory: 15, otherCurrentAssets: 0, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
                 pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
-            }
+            },
+            // PDF読込時に抽出できた販管費内訳（[{name, value(百万円)}, ...]）
+            sgaDetail: null,
+            periodLabel: null
         };
 
         // サンプル用プリセットデータ
@@ -990,33 +1220,33 @@
             kango: {
                 companyName: 'サンプル訪問看護ステーション',
                 currentPeriod: {
-                    bs: { cashEquiv: 210, inventory: 0, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 140 },
+                    bs: { cashEquiv: 190, cash: 190, inventory: 0, otherCurrentAssets: 20, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 140 },
                     pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
                 },
                 previousPeriod: {
-                    bs: { cashEquiv: 180, inventory: 0, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 100 },
+                    bs: { cashEquiv: 165, cash: 165, inventory: 0, otherCurrentAssets: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 100 },
                     pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
                 }
             },
             reuse: {
                 companyName: 'サンプルリユース株式会社（買取モデル）',
                 currentPeriod: {
-                    bs: { cashEquiv: 300, inventory: 150, fixedAssets: 50, currentLiabilities: 120, fixedLiabilities: 80, equity: 300 },
+                    bs: { cashEquiv: 300, cash: 280, inventory: 150, otherCurrentAssets: 0, fixedAssets: 50, currentLiabilities: 120, fixedLiabilities: 80, equity: 300 },
                     pl: { revenue: 1200, costOfSales: 600, sga: 400, nonOpIncome: 10, extraordinary: -5, taxes: 60 }
                 },
                 previousPeriod: {
-                    bs: { cashEquiv: 250, inventory: 120, fixedAssets: 60, currentLiabilities: 150, fixedLiabilities: 90, equity: 190 },
+                    bs: { cashEquiv: 250, cash: 230, inventory: 120, otherCurrentAssets: 0, fixedAssets: 60, currentLiabilities: 150, fixedLiabilities: 90, equity: 190 },
                     pl: { revenue: 1000, costOfSales: 520, sga: 350, nonOpIncome: 5, extraordinary: 0, taxes: 40 }
                 }
             },
             tech: {
                 companyName: 'サンプルクラウドSaaS株式会社（ITモデル）',
                 currentPeriod: {
-                    bs: { cashEquiv: 500, inventory: 0, fixedAssets: 200, currentLiabilities: 150, fixedLiabilities: 50, equity: 500 },
+                    bs: { cashEquiv: 500, cash: 450, inventory: 0, otherCurrentAssets: 0, fixedAssets: 200, currentLiabilities: 150, fixedLiabilities: 50, equity: 500 },
                     pl: { revenue: 800, costOfSales: 200, sga: 450, nonOpIncome: 0, extraordinary: 0, taxes: 45 }
                 },
                 previousPeriod: {
-                    bs: { cashEquiv: 400, inventory: 0, fixedAssets: 150, currentLiabilities: 120, fixedLiabilities: 60, equity: 370 },
+                    bs: { cashEquiv: 400, cash: 360, inventory: 0, otherCurrentAssets: 0, fixedAssets: 150, currentLiabilities: 120, fixedLiabilities: 60, equity: 370 },
                     pl: { revenue: 600, costOfSales: 150, sga: 350, nonOpIncome: 0, extraordinary: 0, taxes: 30 }
                 }
             }
@@ -1027,6 +1257,8 @@
         let plViewMode = 'block';
         let plChart = null;
         let radarChartInstance = null; // ★追加: レーダーチャート用変数
+        let sgaChartInstance = null;   // 販管費内訳チャート
+        let pendingExtraction = null;  // レビューモーダルで確認待ちの抽出結果
 
         // 業界平均ベンチマークデータ (スコア化用 100点満点換算の基準値)
         const benchmarks = {
@@ -1044,10 +1276,52 @@
         };
 
         window.onload = function() {
-            initWaterfallChart();
-            initRadarChart(); // ★追加
-            updateAllVisuals();
+            // CDN（Chart.js / PDF.js）が社内ネットワーク等でブロックされても、
+            // 数表と診断結果は必ず表示されるよう、初期化を個別に保護する。
+            const missing = [];
+            if (typeof Chart === 'undefined') missing.push('Chart.js（グラフ描画）');
+            if (typeof pdfjsLib === 'undefined') missing.push('PDF.js（PDF読込）');
+
+            try { if (typeof Chart !== 'undefined') { initWaterfallChart(); initRadarChart(); } }
+            catch (e) { console.error('チャート初期化に失敗しました', e); }
+            try { initPdfDropZone(); } catch (e) { console.error('ドロップゾーン初期化に失敗しました', e); }
+            try { updateAllVisuals(); } catch (e) { console.error('画面更新に失敗しました', e); }
+
+            if (missing.length) {
+                pdfStatus(`<i class="fa-solid fa-triangle-exclamation text-amber-600 mr-2"></i>
+                    外部ライブラリを読み込めませんでした（${missing.join(' / ')}）。
+                    数値の入力・分析・表は利用できますが、グラフとPDF読込は動作しません。
+                    ネットワーク接続やプロキシ設定をご確認ください。`);
+            }
         };
+
+        /** 決算書PDFのドラッグ＆ドロップ受付 */
+        function initPdfDropZone() {
+            const zone = $('pdfDropZone');
+            if (!zone) return;
+            const ACTIVE = ['border-indigo-600', 'bg-indigo-50'];
+            const setActive = on => on ? zone.classList.add(...ACTIVE) : zone.classList.remove(...ACTIVE);
+
+            ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+                e.preventDefault(); e.stopPropagation(); setActive(true);
+            }));
+            ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+                e.preventDefault(); e.stopPropagation(); setActive(false);
+            }));
+            zone.addEventListener('drop', e => {
+                const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                if (!file) return;
+                if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) {
+                    pdfStatus(`<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDFファイルを指定してください（受け取ったファイル: ${file.name}）`);
+                    return;
+                }
+                readFinancialPdf(file);
+            });
+            // ページ全体へのドロップでブラウザがPDFを開いてしまうのを防ぐ
+            ['dragover', 'drop'].forEach(ev => window.addEventListener(ev, e => {
+                if (!zone.contains(e.target)) e.preventDefault();
+            }));
+        }
 
         function switchGlobalView(mode) {
             appState.viewMode = mode;
@@ -1065,7 +1339,7 @@
 
             if (mode === 'single') {
                 btnSingle.className = "px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition";
-                btnCompare.className = "px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition";
+                btnCompare.className = "px-3 py-1.5 text-xs rounded-md font-medium text-slate-500 hover:text-slate-900 transition";
                 
                 bsContainer.classList.remove('grid-cols-2');
                 bsContainer.classList.add('grid-cols-1');
@@ -1080,7 +1354,7 @@
 
             } else {
                 btnCompare.className = "px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition";
-                btnSingle.className = "px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition";
+                btnSingle.className = "px-3 py-1.5 text-xs rounded-md font-medium text-slate-500 hover:text-slate-900 transition";
                 
                 bsContainer.classList.remove('grid-cols-1');
                 bsContainer.classList.add('grid-cols-2');
@@ -1176,13 +1450,17 @@
 
         // Core Financial Calculator & Visual Render
         function updateAllVisuals() {
+            // 旧形式データや部分的な入力でも壊れないよう、毎回フィールドを補完しておく
+            appState.currentPeriod = normalizePeriod(appState.currentPeriod);
+            appState.previousPeriod = normalizePeriod(appState.previousPeriod);
+
             const bs = appState.currentPeriod.bs;
             const pl = appState.currentPeriod.pl;
             const pBs = appState.previousPeriod.bs;
             const pPl = appState.previousPeriod.pl;
 
             // Computed Values Current
-            const currentAssets = (bs.cashEquiv || 0) + (bs.inventory || 0);
+            const currentAssets = (bs.cashEquiv || 0) + (bs.inventory || 0) + (bs.otherCurrentAssets || 0);
             const totalAssets = currentAssets + (bs.fixedAssets || 0);
             const totalLiabilities = (bs.currentLiabilities || 0) + (bs.fixedLiabilities || 0);
             const totalLiabAndEquity = totalLiabilities + (bs.equity || 0);
@@ -1194,20 +1472,21 @@
             const netProfit = netProfitBeforeTax - (pl.taxes || 0);
 
             // Computed Values Previous
-            const pCurrentAssets = (pBs.cashEquiv || 0) + (pBs.inventory || 0);
+            const pCurrentAssets = (pBs.cashEquiv || 0) + (pBs.inventory || 0) + (pBs.otherCurrentAssets || 0);
             const pTotalAssets = pCurrentAssets + (pBs.fixedAssets || 0);
             const pGrossProfit = (pPl.revenue || 0) - (pPl.costOfSales || 0);
             const pOperatingProfit = pGrossProfit - (pPl.sga || 0);
             const pNetProfit = pOperatingProfit + pPl.nonOpIncome + pPl.extraordinary - pPl.taxes;
 
             // Header Displays
-            document.getElementById('displayCompanyName').textContent = appState.companyName || '未設定企業';
-            document.getElementById('displayTotalAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
-            document.getElementById('displayRevenue').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
-            document.getElementById('displayOperatingProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
-            
+            setText('displayCompanyName', appState.companyName || '未設定企業');
+            setText('displayTotalAssets', `¥${Math.round(totalAssets).toLocaleString()}M`);
+            setText('displayRevenue', `¥${Math.round(pl.revenue).toLocaleString()}M`);
+            setText('displayOperatingProfit', `¥${Math.round(operatingProfit).toLocaleString()}M`);
+            setText('displayPeriodLabel', appState.periodLabel || '最新決算期');
+
             const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
-            document.getElementById('displayEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
+            setText('displayEquityRatio', `${equityRatio.toFixed(1)}%`);
 
             // Comparison KPIs
             const revDiffPct = pPl.revenue > 0 ? ((pl.revenue - pPl.revenue) / pPl.revenue) * 100 : 0;
@@ -1226,14 +1505,15 @@
             renderDiff('cmpOpDiff', opDiffPct);
 
             // --- B/S Visual Diagram (Current) ---
-            document.getElementById('valCurrentAssets').textContent = `¥${Math.round(currentAssets).toLocaleString()}M`;
-            document.getElementById('valCashEquiv').textContent = `¥${Math.round(bs.cashEquiv).toLocaleString()}M`;
-            document.getElementById('valInventory').textContent = `¥${Math.round(bs.inventory).toLocaleString()}M`;
-            document.getElementById('valFixedAssets').textContent = `¥${Math.round(bs.fixedAssets).toLocaleString()}M`;
+            setText('valCurrentAssets', `¥${Math.round(currentAssets).toLocaleString()}M`);
+            setText('valCashEquiv', `¥${Math.round(bs.cashEquiv).toLocaleString()}M`);
+            setText('valInventory', `¥${Math.round(bs.inventory).toLocaleString()}M`);
+            setText('valOtherCurrentAssets', `¥${Math.round(bs.otherCurrentAssets || 0).toLocaleString()}M`);
+            setText('valFixedAssets', `¥${Math.round(bs.fixedAssets).toLocaleString()}M`);
 
-            document.getElementById('valCurrentLiabilities').textContent = `¥${Math.round(bs.currentLiabilities).toLocaleString()}M`;
-            document.getElementById('valFixedLiabilities').textContent = `¥${Math.round(bs.fixedLiabilities).toLocaleString()}M`;
-            document.getElementById('valEquity').textContent = `¥${Math.round(bs.equity).toLocaleString()}M`;
+            setText('valCurrentLiabilities', `¥${Math.round(bs.currentLiabilities).toLocaleString()}M`);
+            setText('valFixedLiabilities', `¥${Math.round(bs.fixedLiabilities).toLocaleString()}M`);
+            setText('valEquity', `¥${Math.round(bs.equity).toLocaleString()}M`);
 
             const pctCA = totalAssets > 0 ? ((currentAssets / totalAssets) * 100).toFixed(1) : 0;
             const pctFA = totalAssets > 0 ? ((bs.fixedAssets / totalAssets) * 100).toFixed(1) : 0;
@@ -1241,11 +1521,11 @@
             const pctFL = totalAssets > 0 ? ((bs.fixedLiabilities / totalAssets) * 100).toFixed(1) : 0;
             const pctEq = totalAssets > 0 ? ((bs.equity / totalAssets) * 100).toFixed(1) : 0;
 
-            document.getElementById('pctCurrentAssets').textContent = `${pctCA}%`;
-            document.getElementById('pctFixedAssets').textContent = `${pctFA}%`;
-            document.getElementById('pctCurrentLiabilities').textContent = `${pctCL}%`;
-            document.getElementById('pctFixedLiabilities').textContent = `${pctFL}%`;
-            document.getElementById('pctEquity').textContent = `${pctEq}%`;
+            setText('pctCurrentAssets', `${pctCA}%`);
+            setText('pctFixedAssets', `${pctFA}%`);
+            setText('pctCurrentLiabilities', `${pctCL}%`);
+            setText('pctFixedLiabilities', `${pctFL}%`);
+            setText('pctEquity', `${pctEq}%`);
 
             // gap(余白)によるはみ出しを防ぐため、heightではなくflex-growで高さを割り当てるヘルパー
             const setFlex = (id, val) => {
@@ -1317,22 +1597,21 @@
             const pctPlOther = Math.max(2, (otherCostVal / rev) * 100);
             const pctPlNet = Math.max(2, (netProfit / rev) * 100);
 
-            document.getElementById('plBlockValRev').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
-            document.getElementById('plBlockValCost').textContent = `¥${Math.round(pl.costOfSales).toLocaleString()}M`;
-            document.getElementById('plBlockPctCost').textContent = `${((pl.costOfSales / rev) * 100).toFixed(1)}%`;
-            document.getElementById('plBlockCost').style.height = `${pctPlCost}%`;
+            // 高さは直後の setFlex() で flex-grow により割り当てるため、
+            // ここで style.height を設定しても打ち消される（旧コードの重複指定を削除）
+            setText('plBlockValRev', `¥${Math.round(pl.revenue).toLocaleString()}M`);
+            setText('plBlockValCost', `¥${Math.round(pl.costOfSales).toLocaleString()}M`);
+            setText('plBlockPctCost', `${((pl.costOfSales / rev) * 100).toFixed(1)}%`);
 
-            document.getElementById('plBlockValSga').textContent = `¥${Math.round(pl.sga).toLocaleString()}M`;
-            document.getElementById('plBlockPctSga').textContent = `${((pl.sga / rev) * 100).toFixed(1)}%`;
-            document.getElementById('plBlockSga').style.height = `${pctPlSga}%`;
+            setText('plBlockValSga', `¥${Math.round(pl.sga).toLocaleString()}M`);
+            setText('plBlockPctSga', `${((pl.sga / rev) * 100).toFixed(1)}%`);
 
-            document.getElementById('plBlockValTaxOther').textContent = `¥${Math.round(otherCostVal).toLocaleString()}M`;
-            document.getElementById('plBlockPctTaxOther').textContent = `${((otherCostVal / rev) * 100).toFixed(1)}%`;
-            document.getElementById('plBlockTaxOther').style.height = `${pctPlOther}%`;
+            setText('plBlockValTaxOther', `¥${Math.round(otherCostVal).toLocaleString()}M`);
+            setText('plBlockPctTaxOther', `${((otherCostVal / rev) * 100).toFixed(1)}%`);
 
-            document.getElementById('plBlockValNet').textContent = `¥${Math.round(netProfit).toLocaleString()}M`;
-            document.getElementById('plBlockPctNet').textContent = `${((netProfit / rev) * 100).toFixed(1)}%`;
-            
+            setText('plBlockValNet', `¥${Math.round(netProfit).toLocaleString()}M`);
+            setText('plBlockPctNet', `${((netProfit / rev) * 100).toFixed(1)}%`);
+
             setFlex('plBlockCost', pctPlCost);
             setFlex('plBlockSga', pctPlSga);
             setFlex('plBlockTaxOther', pctPlOther);
@@ -1360,66 +1639,82 @@
             const quickRatio = bs.currentLiabilities > 0 ? (bs.cashEquiv / bs.currentLiabilities) * 100 : 0;
             const fixedRatio = bs.equity > 0 ? (bs.fixedAssets / bs.equity) * 100 : 0;
 
-            document.getElementById('valRatioCurrent').textContent = `${currentRatio.toFixed(1)}%`;
-            document.getElementById('valRatioQuick').textContent = `${quickRatio.toFixed(1)}%`;
-            document.getElementById('valRatioEquity').textContent = `${equityRatio.toFixed(1)}%`;
-            document.getElementById('valRatioFixed').textContent = `${fixedRatio.toFixed(1)}%`;
+            setText('valRatioCurrent', `${currentRatio.toFixed(1)}%`);
+            setText('valRatioQuick', `${quickRatio.toFixed(1)}%`);
+            setText('valRatioEquity', `${equityRatio.toFixed(1)}%`);
+            setText('valRatioFixed', `${fixedRatio.toFixed(1)}%`);
 
-            const badgeSafety = document.getElementById('badgeSafety');
-            const descSafety = document.getElementById('descSafety');
+            const badgeSafety = $('badgeSafety');
             if (currentRatio >= 150 && equityRatio >= 50) {
                 badgeSafety.textContent = "優良";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-                descSafety.textContent = "流動比率・自己資本比率ともに非常に高水準です。長期・短期の支払能力が確保されています。";
+                setText('descSafety', "流動比率・自己資本比率ともに非常に高水準です。長期・短期の支払能力が確保されています。");
             } else if (currentRatio >= 100 && equityRatio >= 30) {
                 badgeSafety.textContent = "標準";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800";
-                descSafety.textContent = "短期支払い能力および自己資本は標準的な水準です。";
+                setText('descSafety', "短期支払い能力および自己資本は標準的な水準です。");
             } else {
                 badgeSafety.textContent = "要確認";
                 badgeSafety.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800";
-                descSafety.textContent = "流動負債や固定負債の返済負担にご注意ください。手元流動性の確保を推奨します。";
+                setText('descSafety', "流動負債や固定負債の返済負担にご注意ください。手元流動性の確保を推奨します。");
             }
 
             const roa = totalAssets > 0 ? (netProfit / totalAssets) * 100 : 0;
             const roe = bs.equity > 0 ? (netProfit / bs.equity) * 100 : 0;
             const netMargin = (netProfit / rev) * 100;
 
-            document.getElementById('valRatioOpMargin').textContent = `${opMargin.toFixed(1)}%`;
-            document.getElementById('valRatioROA').textContent = `${roa.toFixed(1)}%`;
-            document.getElementById('valRatioROE').textContent = `${roe.toFixed(1)}%`;
-            document.getElementById('valRatioNetMargin').textContent = `${netMargin.toFixed(1)}%`;
+            setText('valRatioOpMargin', `${opMargin.toFixed(1)}%`);
+            setText('valRatioROA', `${roa.toFixed(1)}%`);
+            setText('valRatioROE', `${roe.toFixed(1)}%`);
+            setText('valRatioNetMargin', `${netMargin.toFixed(1)}%`);
 
-            const badgeProf = document.getElementById('badgeProfitability');
-            const descProf = document.getElementById('descProfitability');
+            const badgeProf = $('badgeProfitability');
             if (opMargin >= 10 && roe >= 10) {
                 badgeProf.textContent = "高収益";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800";
-                descProf.textContent = "高い営業利益率を維持し、本業でしっかりと稼ぐ力があります。";
+                setText('descProfitability', "高い営業利益率を維持し、本業でしっかりと稼ぐ力があります。");
             } else if (opMargin >= 5) {
                 badgeProf.textContent = "良好";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-                descProf.textContent = "安定した利益水準を維持しています。";
+                setText('descProfitability', "安定した利益水準を維持しています。");
             } else {
                 badgeProf.textContent = "低調";
                 badgeProf.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800";
-                descProf.textContent = "売上高に対する利益率がやや低めです。コスト構造の見直しを検討できます。";
+                setText('descProfitability', "売上高に対する利益率がやや低めです。コスト構造の見直しを検討できます。");
             }
 
             const assetTurnover = totalAssets > 0 ? (pl.revenue / totalAssets) : 0;
             const invTurnoverMonths = pl.revenue > 0 ? (bs.inventory / (pl.revenue / 12)) : 0;
             const finLeverage = bs.equity > 0 ? (totalAssets / bs.equity) : 0;
 
-            document.getElementById('valRatioAssetTurnover').textContent = `${assetTurnover.toFixed(2)}回`;
-            document.getElementById('valRatioInvTurnover').textContent = `${invTurnoverMonths.toFixed(2)}ヶ月`;
-            document.getElementById('valRatioFinLeverage').textContent = `${finLeverage.toFixed(2)}倍`;
-            document.getElementById('valRatioDupont').textContent = `${netMargin.toFixed(1)}% × ${assetTurnover.toFixed(2)} × ${finLeverage.toFixed(2)}`;
+            setText('valRatioAssetTurnover', `${assetTurnover.toFixed(2)}回`);
+            setText('valRatioInvTurnover', `${invTurnoverMonths.toFixed(2)}ヶ月`);
+            setText('valRatioFinLeverage', `${finLeverage.toFixed(2)}倍`);
+            setText('valRatioDupont', `${netMargin.toFixed(1)}% × ${assetTurnover.toFixed(2)} × ${finLeverage.toFixed(2)}`);
+
+            const badgeEff = $('badgeEfficiency');
+            if (badgeEff) {
+                if (assetTurnover >= 1.5) {
+                    badgeEff.textContent = "良好";
+                    badgeEff.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
+                    setText('descEfficiency', "総資産回転率が高く、少ない資産で効率よく売上を生み出せています。");
+                } else if (assetTurnover >= 0.8) {
+                    badgeEff.textContent = "標準";
+                    badgeEff.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-700";
+                    setText('descEfficiency', "資産の活用度は標準的な水準です。");
+                } else {
+                    badgeEff.textContent = "要改善";
+                    badgeEff.className = "text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800";
+                    setText('descEfficiency', "資産に対して売上が小さめです。遊休資産や滞留在庫がないか確認しましょう。");
+                }
+            }
 
             // ★ 新機能更新呼び出し
             updateCashFlowInsights(bs, pl, currentAssets, operatingProfit);
             updateRadarChart();
+            updateSgaBreakdown(pl);
             // ゴールシークの現在利益表示を更新
-            document.getElementById('gsCurrentProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
+            setText('gsCurrentProfit', `¥${Math.round(operatingProfit).toLocaleString()}M`);
 
             runSimulation();
         }
@@ -1427,15 +1722,19 @@
         // ★ 新機能: 資金繰り・キャッシュフロー診断ロジック
         function updateCashFlowInsights(bs, pl, currentAssets, operatingProfit) {
             const monthlyRevenue = pl.revenue > 0 ? pl.revenue / 12 : 1;
-            const cashMonths = bs.cashEquiv / monthlyRevenue;
-            
-            document.getElementById('valCashMonths').textContent = cashMonths.toFixed(1);
-            document.getElementById('valTiedUpInv').textContent = `¥${Math.round(bs.inventory).toLocaleString()}M`;
-            
-            const badge = document.getElementById('badgeCashFlow');
-            const desc = document.getElementById('descCashFlow');
-            const bar = document.getElementById('barCashMonths');
-            
+            // 現預金月商比は「現預金」で見るのが正しい。決算書から現預金を切り出せた場合は
+            // それを使い、無ければ当座資産で代用する。
+            const cashOnHand = (typeof bs.cash === 'number' && bs.cash > 0) ? bs.cash : bs.cashEquiv;
+            const cashMonths = cashOnHand / monthlyRevenue;
+
+            setText('valCashMonths', cashMonths.toFixed(1));
+            setText('valTiedUpInv', `¥${Math.round(bs.inventory).toLocaleString()}M`);
+
+            const badge = $('badgeCashFlow');
+            const desc = $('descCashFlow');
+            const bar = $('barCashMonths');
+            if (!badge || !desc || !bar) return;
+
             // プログレスバー（最大3ヶ月で100%とする）
             bar.style.width = `${Math.min(100, (cashMonths / 3) * 100)}%`;
 
@@ -1462,6 +1761,67 @@
             if (bs.inventory > operatingProfit && operatingProfit > 0) {
                 desc.innerHTML += `<div class="mt-2 text-rose-700 border-t border-rose-200 pt-2"><i class="fa-solid fa-boxes-stacked mr-1"></i> <b>警告:</b> 営業利益以上の資金が在庫（¥${Math.round(bs.inventory)}M）に縛られています。「利益は出ているのに現金がない」状態の原因です。</div>`;
             }
+        }
+
+        /** 販管費内訳（PDFから抽出できた場合のみ）を表・グラフで可視化する */
+        function updateSgaBreakdown(pl) {
+            const section = $('sgaBreakdownSection');
+            if (!section) return;
+            const detail = appState.sgaDetail;
+            if (!detail || !detail.length) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+
+            const total = detail.reduce((a, d) => a + d.value, 0);
+            const rev = Math.max(1, pl.revenue);
+            const isLabor = name => FinReader.LABOR_KEYS.some(k => FinReader.labelKey(name).includes(FinReader.labelKey(k)));
+            const laborTotal = detail.filter(d => isLabor(d.name)).reduce((a, d) => a + d.value, 0);
+
+            setText('sgaLaborRatio', `${((laborTotal / rev) * 100).toFixed(1)}%`);
+            setText('sgaLaborTotal', `¥${Math.round(laborTotal).toLocaleString()}M`);
+            setText('sgaItemCount', `${detail.length}`);
+            setText('sgaBreakdownMeta', `検出合計 ¥${Math.round(total).toLocaleString()}M（P/L記載の販管費 ¥${Math.round(pl.sga).toLocaleString()}M）`);
+
+            $('sgaTableBody').innerHTML = detail.map(d => `
+                <tr class="${isLabor(d.name) ? 'bg-rose-50/50' : ''}">
+                    <td class="px-2 py-1.5">${isLabor(d.name) ? '<i class="fa-solid fa-user-group text-rose-400 mr-1 text-[9px]"></i>' : ''}${d.name}</td>
+                    <td class="px-2 py-1.5 text-right font-mono">¥${Math.round(d.value).toLocaleString()}M</td>
+                    <td class="px-2 py-1.5 text-right font-mono text-slate-500">${((d.value / rev) * 100).toFixed(1)}%</td>
+                    <td class="px-2 py-1.5 text-right font-mono text-slate-500">${total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0'}%</td>
+                </tr>`).join('');
+
+            const top = detail.slice(0, 10);
+            const ctx = $('sgaChart');
+            if (!ctx) return;
+            if (sgaChartInstance) sgaChartInstance.destroy();
+            sgaChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: top.map(d => d.name),
+                    datasets: [{
+                        label: '金額（百万円）',
+                        data: top.map(d => Math.round(d.value * 10) / 10),
+                        backgroundColor: top.map(d => isLabor(d.name) ? '#f43f5e' : '#6366f1'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: '販管費 上位10科目（赤＝人件費）', font: { size: 11 }, color: '#475569' },
+                        tooltip: { callbacks: { label: c => `¥${c.raw}M（売上比 ${((c.raw / rev) * 100).toFixed(1)}%）` } }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, grid: { color: '#e2e8f0' }, ticks: { font: { size: 10 } } },
+                        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
         }
 
         // ★ 新機能: レーダーチャート初期化
@@ -1517,7 +1877,7 @@
 
             const bs = appState.currentPeriod.bs;
             const pl = appState.currentPeriod.pl;
-            const currentAssets = bs.cashEquiv + bs.inventory;
+            const currentAssets = bs.cashEquiv + bs.inventory + (bs.otherCurrentAssets || 0);
             const totalAssets = currentAssets + bs.fixedAssets;
             const netProfit = pl.revenue - pl.costOfSales - pl.sga + pl.nonOpIncome + pl.extraordinary - pl.taxes;
             
@@ -1596,6 +1956,7 @@
             const bsRows = [
                 { name: '流動資産（当座資産）', val: bs.cashEquiv, pct: totalAssets > 0 ? (bs.cashEquiv / totalAssets) * 100 : 0 },
                 { name: '流動資産（棚卸資産）', val: bs.inventory, pct: totalAssets > 0 ? (bs.inventory / totalAssets) * 100 : 0 },
+                { name: '流動資産（その他）', val: bs.otherCurrentAssets || 0, pct: totalAssets > 0 ? ((bs.otherCurrentAssets || 0) / totalAssets) * 100 : 0 },
                 { name: '流動資産 合計', val: currentAssets, pct: totalAssets > 0 ? (currentAssets / totalAssets) * 100 : 0, bold: true },
                 { name: '固定資産', val: bs.fixedAssets, pct: totalAssets > 0 ? (bs.fixedAssets / totalAssets) * 100 : 0, bold: true },
                 { name: '【 資産の部 合計 】', val: totalAssets, pct: 100.0, header: true },
@@ -1762,7 +2123,9 @@
             
             document.getElementById('inputCompanyName').value = appState.companyName || '';
             document.getElementById('inputCashEquiv').value = data.bs.cashEquiv;
+            document.getElementById('inputCash').value = (typeof data.bs.cash === 'number') ? data.bs.cash : '';
             document.getElementById('inputInventory').value = data.bs.inventory;
+            document.getElementById('inputOtherCurrentAssets').value = data.bs.otherCurrentAssets || 0;
             document.getElementById('inputFixedAssets').value = data.bs.fixedAssets;
             document.getElementById('inputCurrentLiabilities').value = data.bs.currentLiabilities;
             document.getElementById('inputFixedLiabilities').value = data.bs.fixedLiabilities;
@@ -1795,7 +2158,10 @@
             appState.companyName = document.getElementById('inputCompanyName').value;
 
             targetData.bs.cashEquiv = (parseFloat(document.getElementById('inputCashEquiv').value) || 0) / unitDivider;
+            const cashRaw = document.getElementById('inputCash').value;
+            targetData.bs.cash = cashRaw === '' ? null : (parseFloat(cashRaw) || 0) / unitDivider;
             targetData.bs.inventory = (parseFloat(document.getElementById('inputInventory').value) || 0) / unitDivider;
+            targetData.bs.otherCurrentAssets = (parseFloat(document.getElementById('inputOtherCurrentAssets').value) || 0) / unitDivider;
             targetData.bs.fixedAssets = (parseFloat(document.getElementById('inputFixedAssets').value) || 0) / unitDivider;
             targetData.bs.currentLiabilities = (parseFloat(document.getElementById('inputCurrentLiabilities').value) || 0) / unitDivider;
             targetData.bs.fixedLiabilities = (parseFloat(document.getElementById('inputFixedLiabilities').value) || 0) / unitDivider;
@@ -1821,183 +2187,962 @@
             scrollToVisuals();
         }
 
-        async function handlePdfUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        /* ============================================================================
+         *  決算書読取エンジン (FinReader)
+         *  --------------------------------------------------------------------------
+         *  会計事務所・税務ソフトが出力する「決算報告書」PDFを対象とした抽出エンジン。
+         *
+         *  設計上のポイント:
+         *   1) 行構造を保ったまま解析する
+         *      決算書は「科目名 ......... 金額」という2カラム構造で、さらに金額欄が
+         *      「内訳列」と「小計列」の2列に分かれている。テキスト全体を1本の文字列に
+         *      連結してしまうと隣接する別科目の金額を拾う誤りが起きるため、
+         *      文字の座標(x, y)から行を復元し、「行内の最も右にある数値」を採用する。
+         *   2) 文字幅調整（例:「現 預 金 計」）に強い正規化
+         *      決算書は科目名が均等割り付けされ1文字ずつ空白が入るため、
+         *      ラベル比較時は空白を完全に除去し、全角→半角も統一する。
+         *   3) スキャンPDF（文字情報なし）はOCRにフォールバック
+         *      複合機でスキャンしたPDFには文字レイヤーが無く、getTextContent() は
+         *      空を返す。その場合はページを画像として描画し、Tesseract.js(日本語)で
+         *      OCRしてから同じ解析パイプラインに流す。
+         *   4) 推測値で埋めない
+         *      旧実装は未検出時に「売上高=500」などのダミー値を代入していたため、
+         *      読み取り失敗が利用者に伝わらなかった。本実装は未検出を null として扱い、
+         *      整合式から導出できる場合のみ derived として補完し、出所を必ず表示する。
+         * ========================================================================== */
+        const FinReader = (() => {
 
-            const alertBox = document.getElementById('pdfStatusAlert');
-            const alertText = document.getElementById('pdfStatusText');
-            const logsBox = document.getElementById('pdfParsingLogs');
-            
-            alertBox.classList.remove('hidden');
-            logsBox.classList.remove('hidden');
-            alertText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> PDF「${file.name}」を解析中...`;
-            logsBox.innerHTML = `PDFロード中...`;
+            // ---- 正規化ユーティリティ -------------------------------------------------
+            // 全角英数字・記号を半角へ。カタカナは科目名に使われるため変換しない。
+            function toHalfWidth(s) {
+                return s
+                    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+                    .replace(/[：]/g, ':')
+                    .replace(/[，]/g, ',')
+                    .replace(/[．]/g, '.')
+                    .replace(/[（]/g, '(').replace(/[）]/g, ')')
+                    .replace(/[－―ー‐−]/g, '-');
+            }
+
+            // 科目名の比較用キー。空白・記号を落として素の文字列にする。
+            function labelKey(s) {
+                return toHalfWidth(String(s || ''))
+                    .replace(/[\s　]/g, '')
+                    .replace(/[・･、,.:|]/g, '')
+                    .replace(/[()【】\[\]{}<>《》]/g, '');
+            }
+
+            // OCRが数字を誤認しやすいパターンを補正してから数値化する。
+            function parseAmount(raw) {
+                let s = toHalfWidth(String(raw || '')).replace(/[\s　]/g, '');
+                let negative = /[△▲]/.test(s) || /^-/.test(s) || /^\(.*\)$/.test(s);
+                s = s.replace(/[△▲()]/g, '').replace(/^-/, '');
+                // OCR頻出誤認: O/o→0, l/I→1, S→5, B→8, Z→2
+                s = s.replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
+                s = s.replace(/[^0-9,.]/g, '');
+                // 桁区切りとしてのカンマ/ピリオドを除去（決算書に小数は現れない）
+                s = s.replace(/[,.]/g, '');
+                if (!/^\d+$/.test(s)) return null;
+                const v = parseInt(s, 10);
+                if (!Number.isFinite(v)) return null;
+                return negative ? -v : v;
+            }
+
+            // ---- あいまい一致（OCRの1〜2文字誤認を許容） -------------------------------
+            function editDistance(a, b) {
+                const m = a.length, n = b.length;
+                if (!m) return n;
+                if (!n) return m;
+                let prev = Array.from({ length: n + 1 }, (_, j) => j);
+                for (let i = 1; i <= m; i++) {
+                    const cur = [i];
+                    for (let j = 1; j <= n; j++) {
+                        cur[j] = Math.min(
+                            prev[j] + 1,
+                            cur[j - 1] + 1,
+                            prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+                        );
+                    }
+                    prev = cur;
+                }
+                return prev[n];
+            }
+            /**
+             * ラベルと候補語の一致段階(tier)を返す。小さいほど確からしい。
+             *   0: 完全一致        「純資産合計」= 純資産合計
+             *   1: 末尾一致        「流動負債合計」⊃ 負債合計（末尾）
+             *   2: 部分一致        どこかに含む
+             *   3: あいまい一致    OCRの1文字誤認を救済
+             *   null: 不一致
+             *
+             * 決算書の科目名は「固定"資産合計"」「純"資産合計"」のように、別科目の名前を
+             * 部分文字列として含む。単純な includes による先勝ちだと
+             * 「純資産合計」が「資産合計(=総資産)」として取り込まれてしまうため、
+             * 完全一致を最優先し、より長い（＝限定的な）候補語を優先する。
+             */
+            function labelMatchTier(label, needle) {
+                if (!label || !needle) return null;
+                if (label === needle) return 0;
+                if (label.endsWith(needle)) return 1;
+                if (label.includes(needle)) return 2;
+                // 短い語での誤爆を避け、4文字以上のみあいまい一致を許可（OCR誤認の救済用）
+                if (needle.length < 4 || label.length < 3) return null;
+                const d = editDistance(label, needle);
+                return d <= Math.max(1, Math.floor(needle.length * 0.2)) ? 3 : null;
+            }
+
+            // ---- 抽出対象スキーマ -----------------------------------------------------
+            // patterns は優先順。先に書いたものほど信頼度が高い（小計行を優先）。
+            const SCHEMA = [
+                // --- 貸借対照表 ---
+                { key: 'cash',                label: '現預金計',           scope: 'bs', patterns: ['現預金計', '現金預金計', '現金及び預金', '現金預金', '預金計'] },
+                { key: 'quickAssets',         label: '当座資産計',         scope: 'bs', patterns: ['当座資産計', '当座資産合計', '当座資産'] },
+                { key: 'inventory',           label: '棚卸資産計',         scope: 'bs', patterns: ['棚卸資産計', '棚卸資産合計', 'たな卸資産計', '棚卸資産'] },
+                { key: 'otherCurrentAssets',  label: 'その他流動資産計',   scope: 'bs', patterns: ['その他流動資産計', '他流動資産計', 'その他の流動資産計', 'その他流動資産'] },
+                { key: 'currentAssets',       label: '流動資産計',         scope: 'bs', patterns: ['流動資産計', '流動資産合計'] },
+                { key: 'tangibleFixed',       label: '有形固定資産計',     scope: 'bs', patterns: ['有形固定資産計', '有形固定資産合計'] },
+                { key: 'intangibleFixed',     label: '無形固定資産計',     scope: 'bs', patterns: ['無形固定資産計', '無形固定資産合計'] },
+                { key: 'investments',         label: '投資その他の資産計', scope: 'bs', patterns: ['投資その他の資産計', '投資その他の資産合計', '投資等計'] },
+                { key: 'fixedAssets',         label: '固定資産計',         scope: 'bs', patterns: ['固定資産計', '固定資産合計'] },
+                { key: 'totalAssets',         label: '資産の部合計',       scope: 'bs', patterns: ['資産の部合計', '資産合計', '資産の部計', '総資産'] },
+                { key: 'currentLiabilities',  label: '流動負債計',         scope: 'bs', patterns: ['流動負債計', '流動負債合計'] },
+                { key: 'fixedLiabilities',    label: '固定負債計',         scope: 'bs', patterns: ['固定負債計', '固定負債合計'] },
+                { key: 'totalLiabilities',    label: '負債の部合計',       scope: 'bs', patterns: ['負債の部合計', '負債合計', '負債の部計'] },
+                { key: 'equity',              label: '純資産の部計',       scope: 'bs', patterns: ['純資産の部合計', '純資産の部計', '純資産合計', '株主資本計', '株主資本合計', '自己資本合計'] },
+                { key: 'capitalStock',        label: '資本金',             scope: 'bs', patterns: ['資本金'] },
+                { key: 'totalLiabAndEquity',  label: '負債・純資産の部計', scope: 'bs', patterns: ['負債純資産の部計', '負債純資産の部合計', '負債及び純資産合計', '負債純資産合計'] },
+
+                // --- 損益計算書 ---
+                { key: 'revenue',             label: '純売上高',           scope: 'pl', patterns: ['純売上高', '売上高計', '売上高合計', '営業収益計', '売上高', '営業収益', '完成工事高'] },
+                { key: 'costOfSales',         label: '売上原価',           scope: 'pl', patterns: ['売上原価', '営業原価', '完成工事原価'] },
+                { key: 'grossProfit',         label: '売上総利益',         scope: 'pl', patterns: ['売上総利益', '売上総損益'] },
+                { key: 'sga',                 label: '販売費・一般管理費計', scope: 'pl', patterns: ['販売費一般管理費計', '販売費及び一般管理費計', '販売費及び一般管理費合計', '販売費及び一般管理費', '販売費一般管理費', '販管費'] },
+                { key: 'operatingProfit',     label: '営業利益',           scope: 'pl', patterns: ['営業利益', '営業損益'] },
+                { key: 'nonOpIncomeTotal',    label: '営業外収益',         scope: 'pl', patterns: ['営業外収益計', '営業外収益合計', '営業外収益'] },
+                { key: 'nonOpExpenseTotal',   label: '営業外費用',         scope: 'pl', patterns: ['営業外費用計', '営業外費用合計', '営業外費用'] },
+                { key: 'nonOpNet',            label: '営業外損益計',       scope: 'pl', patterns: ['営業外損益計', '営業外損益'] },
+                { key: 'recurringProfit',     label: '経常利益',           scope: 'pl', patterns: ['経常利益', '経常損益'] },
+                { key: 'extraIncome',         label: '特別利益',           scope: 'pl', patterns: ['特別利益計', '特別利益合計', '特別利益'] },
+                { key: 'extraLoss',           label: '特別損失',           scope: 'pl', patterns: ['特別損失計', '特別損失合計', '特別損失'] },
+                { key: 'pretaxProfit',        label: '税引前当期純利益',   scope: 'pl', patterns: ['税引前当期純利益', '税引前当期純損益', '税引前利益'] },
+                { key: 'taxes',               label: '法人税・住民税・事業税', scope: 'pl', patterns: ['法人税住民税事業税', '法人税住民税及び事業税', '法人税等調整額', '法人税等計', '法人税等'] },
+                { key: 'netProfit',           label: '当期純利益',         scope: 'pl', patterns: ['当期純利益', '当期純損益'] }
+            ];
+
+            // 人件費として集計する販管費科目
+            const LABOR_KEYS = ['役員報酬', '役員賞与', '給与手当', '給与・手当', '給与手当', '賞与', '雑給', '法定福利費', '福利厚生費', '退職金', '退職給付費用', 'DB掛金'];
+
+            // ---- ページ種別の判定 -----------------------------------------------------
+            const PAGE_KINDS = [
+                { kind: 'bs',      needles: ['貸借対照表'] },
+                { kind: 'pl',      needles: ['損益計算書'] },
+                { kind: 'sga',     needles: ['販売費及び一般管理費', '販売費一般管理費'] },
+                { kind: 'cost',    needles: ['製造原価報告書', '売上原価報告書'] },
+                { kind: 'equity',  needles: ['株主資本等変動計算書'] },
+                { kind: 'notes',   needles: ['個別注記表'] },
+                { kind: 'detail',  needles: ['勘定科目内訳明細書', 'の内訳書'] },
+                { kind: 'cover',   needles: ['決算報告書', '決算書'] }
+            ];
+            function detectPageKind(lines) {
+                const head = labelKey(lines.slice(0, 8).map(l => l.text).join(''));
+                for (const p of PAGE_KINDS) {
+                    if (p.needles.some(n => head.includes(labelKey(n)))) return p.kind;
+                }
+                const all = labelKey(lines.map(l => l.text).join(''));
+                for (const p of PAGE_KINDS) {
+                    if (p.needles.some(n => all.includes(labelKey(n)))) return p.kind;
+                }
+                return 'unknown';
+            }
+
+            // 「解析に使う」ページ種別。内訳明細書などは科目名と住所の数字が混在し
+            // 誤検出源になるため除外する。
+            const PARSE_KINDS = ['bs', 'pl', 'sga', 'cost', 'equity', 'cover', 'unknown'];
+
+            // ---- 単位判定 -------------------------------------------------------------
+            // 「（単位：円）」は文字間隔調整で「( 単 位 ： 円 )」となるため、
+            // 空白除去後のキーで判定する。
+            function detectUnit(lines) {
+                const joined = labelKey(lines.map(l => l.text).join('\n'));
+                if (/単位百万円/.test(joined) || /百万円単位/.test(joined)) return { multiplier: 1, name: '百万円', factorLabel: '換算なし' };
+                if (/単位千円/.test(joined) || /千円単位/.test(joined)) return { multiplier: 0.001, name: '千円', factorLabel: '1/1,000で百万円に換算' };
+                if (/単位円/.test(joined) || /金額円/.test(joined) || /期末現在高円/.test(joined)) return { multiplier: 0.000001, name: '円', factorLabel: '1/1,000,000で百万円に換算' };
+                return { multiplier: null, name: '不明', factorLabel: '単位を判定できませんでした' };
+            }
+
+            // ---- 会社名・会計期間 -----------------------------------------------------
+            function detectCompanyName(lines) {
+                const SUFFIX = '株式会社|有限会社|合同会社|合資会社|合名会社|医療法人社団|医療法人|社会福祉法人|一般社団法人|公益社団法人|特定非営利活動法人';
+                for (const l of lines) {
+                    // 決算書の社名は「株 式 会 社  Ｋ Ｉ Ｎ Ａ Ｒ Ｉ」のように1文字ずつ
+                    // 空白が入るため、空白を除去した文字列に対して照合する。
+                    const t = toHalfWidth(l.text).replace(/[\s　]/g, '');
+                    if (!t || t.length > 60) continue;
+                    let m = t.match(new RegExp(`^(${SUFFIX})([^\\d]{1,24}?)$`));
+                    if (m) return `${m[1]} ${m[2]}`.trim();
+                    m = t.match(new RegExp(`^([^\\d]{1,24}?)(${SUFFIX})$`));
+                    if (m) return `${m[1]}${m[2]}`.trim();
+                    m = t.match(new RegExp(`(${SUFFIX})([A-Za-z0-9ァ-ヶ一-龠ぁ-ん]{1,24})`));
+                    if (m) return `${m[1]} ${m[2]}`.trim();
+                }
+                return null;
+            }
+
+            // 和暦（令和・平成・昭和）を西暦に変換する。
+            const ERA_BASE = { '令和': 2018, '平成': 1988, '昭和': 1925 };
+            function detectPeriod(lines) {
+                const joined = toHalfWidth(lines.map(l => l.text).join(' ')).replace(/[\s　]/g, '');
+                const re = /(令和|平成|昭和)?(\d{1,2})年(\d{1,2})月(\d{1,2})日/g;
+                const dates = [];
+                let m;
+                while ((m = re.exec(joined)) !== null) {
+                    const era = m[1] || '令和';
+                    const base = ERA_BASE[era] || 2018;
+                    const y = base + parseInt(m[2], 10);
+                    const mo = parseInt(m[3], 10), d = parseInt(m[4], 10);
+                    if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+                    dates.push({ t: y * 10000 + mo * 100 + d, y, mo, d });
+                }
+                const termMatch = joined.match(/第(\d{1,3})期/);
+                const term = termMatch ? `第${termMatch[1]}期` : null;
+                if (dates.length >= 2) {
+                    // ページの並び順に依存しないよう、最も古い日付を期首・新しい日付を期末とする
+                    const sorted = [...dates].sort((a, b) => a.t - b.t);
+                    const f = sorted[0], t = sorted[sorted.length - 1];
+                    const fmt = x => `${x.y}/${String(x.mo).padStart(2, '0')}/${String(x.d).padStart(2, '0')}`;
+                    const label = `${fmt(f)} 〜 ${fmt(t)}`;
+                    return { label: term ? `${term}（${label}）` : label, term };
+                }
+                return { label: term, term };
+            }
+
+            // ---- 行の復元（テキストレイヤー） -----------------------------------------
+            // pdf.js の各文字要素は transform[4]=x, transform[5]=y を持つ。
+            // y座標が近いものを1行としてまとめ、x昇順に並べ直す。
+            async function linesFromTextLayer(page) {
+                const tc = await page.getTextContent();
+                const items = (tc.items || [])
+                    .filter(it => it.str && it.str.trim() !== '')
+                    .map(it => ({
+                        s: it.str,
+                        x: it.transform[4],
+                        y: it.transform[5],
+                        h: Math.abs(it.transform[3]) || 10
+                    }));
+                return groupIntoLines(items);
+            }
+
+            function groupIntoLines(items) {
+                if (!items.length) return [];
+                const avgH = items.reduce((a, b) => a + b.h, 0) / items.length;
+                const tol = Math.max(2, avgH * 0.6);
+                const sorted = [...items].sort((a, b) => b.y - a.y);
+                const rows = [];
+                for (const it of sorted) {
+                    const row = rows.find(r => Math.abs(r.y - it.y) <= tol);
+                    if (row) {
+                        row.tokens.push(it);
+                        row.y = (row.y * (row.tokens.length - 1) + it.y) / row.tokens.length;
+                    } else {
+                        rows.push({ y: it.y, tokens: [it] });
+                    }
+                }
+                return rows.map(r => {
+                    r.tokens.sort((a, b) => a.x - b.x);
+                    return { y: r.y, tokens: r.tokens, text: r.tokens.map(t => t.s).join(' ') };
+                });
+            }
+
+            // ---- 行の解析: ラベル部と金額部に分割 -------------------------------------
+            // 決算書の1行は「科目名（文字）… 金額（数字）」。数字が現れる直前までを
+            // ラベルとみなし、行内の数値トークンを x 座標付きで集める。
+            function splitLine(line) {
+                const numRe = /^[△▲(\-]?[\d,\.OolIS|B]*\d[\d,\.OolIS|B]*\)?$/;
+                let labelParts = [], nums = [], seenNumber = false;
+                for (const t of line.tokens) {
+                    const raw = toHalfWidth(t.s).trim();
+                    if (!raw) continue;
+                    const looksNumeric = numRe.test(raw) && /\d/.test(raw) && parseAmount(raw) !== null;
+                    if (looksNumeric) {
+                        seenNumber = true;
+                        nums.push({ value: parseAmount(raw), x: t.x, raw });
+                    } else if (!seenNumber) {
+                        labelParts.push(raw);
+                    }
+                }
+                // 1つのトークンに「科目名+金額」がまとまっている場合（OCR行やコピペ）に対応
+                if (!nums.length) {
+                    const whole = toHalfWidth(line.text);
+                    const mm = [...whole.matchAll(/([△▲\-(]?\d[\d,]*\)?)/g)];
+                    if (mm.length) {
+                        const firstIdx = whole.indexOf(mm[0][1]);
+                        labelParts = [whole.slice(0, firstIdx)];
+                        mm.forEach(m => {
+                            const v = parseAmount(m[1]);
+                            if (v !== null) nums.push({ value: v, x: whole.indexOf(m[1]), raw: m[1] });
+                        });
+                    }
+                }
+                return { label: labelKey(labelParts.join('')), labelRaw: labelParts.join(' ').replace(/\s+/g, ' ').trim(), nums, text: line.text };
+            }
+
+            // ---- 抽出本体 -------------------------------------------------------------
+            /**
+             * @param {Array<{page:number, kind:string, lines:Array}>} pages
+             * @returns 抽出結果（金額は「原単位」のまま。換算は reconcile 側で行う）
+             */
+            function extract(pages) {
+                const allLines = pages.flatMap(p => p.lines);
+                const unit = detectUnit(allLines);
+                const company = detectCompanyName(allLines);
+                const period = detectPeriod(allLines);
+
+                // key -> {value, priority, labelRaw, page, x}
+                const found = {};
+                const sgaDetail = [];
+
+                for (const pg of pages) {
+                    if (!PARSE_KINDS.includes(pg.kind)) continue;
+                    for (const line of pg.lines) {
+                        const parsed = splitLine(line);
+                        if (!parsed.label || !parsed.nums.length) continue;
+
+                        // 行内で最も右の数値＝小計列を採用する。
+                        const right = parsed.nums.reduce((a, b) => (b.x > a.x ? b : a), parsed.nums[0]);
+
+                        // 販管費ページの明細行を内訳として蓄積（「計」行は除外）
+                        if (pg.kind === 'sga' && parsed.nums.length <= 2 && !/計$|合計$/.test(parsed.label) && parsed.labelRaw) {
+                            const name = parsed.labelRaw.replace(/\s+/g, '');
+                            if (name.length >= 2 && name.length <= 14 && right.value > 0) {
+                                sgaDetail.push({ name, value: right.value });
+                            }
+                        }
+
+                        // 1行は1科目にのみ割り当てる。SCHEMA全体を走査して最良の候補を選ぶ
+                        // （先に見つかった科目が勝つ「先勝ち」だと誤割り当てが起きる）。
+                        let best = null;
+                        for (let si = 0; si < SCHEMA.length; si++) {
+                            const item = SCHEMA[si];
+                            // scope が合わないページでの誤検出を抑制（不明ページは許容）
+                            if (pg.kind === 'bs' && item.scope === 'pl') continue;
+                            if ((pg.kind === 'pl' || pg.kind === 'sga') && item.scope === 'bs') continue;
+
+                            // 同一科目内でも全候補語を評価する。先頭の候補語が
+                            // あいまい一致しただけで打ち切ると、後ろにある完全一致の
+                            // 候補語（例:「流動負債合計」）を取り逃がす。
+                            for (let pi = 0; pi < item.patterns.length; pi++) {
+                                const needle = labelKey(item.patterns[pi]);
+                                const tier = labelMatchTier(parsed.label, needle);
+                                if (tier === null) continue;
+                                // rank が小さいほど良い候補。
+                                // 一致段階 > 候補語の長さ（長いほど限定的） > 候補語の優先順 の順で評価する。
+                                const rank = tier * 1e6 + (200 - needle.length) * 100 + pi * 10 + si * 0.01;
+                                if (!best || rank < best.rank) best = { item, rank };
+                            }
+                        }
+
+                        if (best) {
+                            // 同じ科目が複数行で見つかった場合、一致度の高い行を採用する。
+                            // 同点なら小計列（行内に複数数値がある行）を優先。
+                            const priority = best.rank - (parsed.nums.length > 1 ? 0.001 : 0);
+                            const prev = found[best.item.key];
+                            if (!prev || priority < prev.priority) {
+                                found[best.item.key] = {
+                                    value: right.value,
+                                    priority,
+                                    labelRaw: parsed.labelRaw || best.item.label,
+                                    lineText: parsed.text.replace(/\s+/g, ' ').trim(),
+                                    page: pg.page,
+                                    kind: pg.kind
+                                };
+                            }
+                        }
+                    }
+                }
+
+                return { unit, company, period, found, sgaDetail, lineCount: allLines.length };
+            }
+
+            /**
+             * 抽出された生の科目値から、アプリの内部モデル（百万円）へ整合させる。
+             * 検出できなかった値は会計恒等式から導出し、導出できたものには
+             * source='derived' を付けて利用者に明示する。
+             */
+            function reconcile(ex) {
+                const f = ex.found;
+                const warnings = [];
+                const src = {}; // key -> 'pdf' | 'derived'
+                const get = k => (f[k] ? f[k].value : null);
+                const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+                // ---------- B/S ----------
+                let totalAssets = num(get('totalAssets'));
+                let currentAssets = num(get('currentAssets'));
+                let fixedAssets = num(get('fixedAssets'));
+                let quick = num(get('quickAssets'));
+                let cash = num(get('cash'));
+                let inventory = num(get('inventory'));
+                let otherCA = num(get('otherCurrentAssets'));
+
+                // 有形＋無形＋投資その他 から固定資産計を導出
+                if (fixedAssets === null) {
+                    const parts = [get('tangibleFixed'), get('intangibleFixed'), get('investments')].filter(v => num(v) !== null);
+                    if (parts.length) { fixedAssets = parts.reduce((a, b) => a + b, 0); src.fixedAssets = 'derived'; }
+                }
+                if (quick === null && cash !== null) { quick = cash; src.quickAssets = 'derived'; }
+                if (inventory === null) inventory = 0;
+
+                // 流動資産計 と 内訳の関係で欠けている側を補う
+                if (currentAssets === null && quick !== null) {
+                    currentAssets = quick + inventory + (otherCA || 0);
+                    src.currentAssets = 'derived';
+                } else if (currentAssets !== null && otherCA === null && quick !== null) {
+                    const diff = currentAssets - quick - inventory;
+                    otherCA = Math.abs(diff) < 1 ? 0 : diff;
+                    src.otherCurrentAssets = 'derived';
+                }
+                if (otherCA === null) otherCA = 0;
+                if (quick === null && currentAssets !== null) { quick = currentAssets - inventory - otherCA; src.quickAssets = 'derived'; }
+
+                if (totalAssets === null && currentAssets !== null && fixedAssets !== null) {
+                    totalAssets = currentAssets + fixedAssets; src.totalAssets = 'derived';
+                }
+                if (fixedAssets === null && totalAssets !== null && currentAssets !== null) {
+                    fixedAssets = totalAssets - currentAssets; src.fixedAssets = 'derived';
+                }
+
+                let currLiab = num(get('currentLiabilities'));
+                let fixedLiab = num(get('fixedLiabilities'));
+                let totalLiab = num(get('totalLiabilities'));
+                let equity = num(get('equity'));
+
+                if (totalLiab === null && currLiab !== null && fixedLiab !== null) { totalLiab = currLiab + fixedLiab; src.totalLiabilities = 'derived'; }
+                if (fixedLiab === null && totalLiab !== null && currLiab !== null) { fixedLiab = totalLiab - currLiab; src.fixedLiabilities = 'derived'; }
+                if (currLiab === null && totalLiab !== null && fixedLiab !== null) { currLiab = totalLiab - fixedLiab; src.currentLiabilities = 'derived'; }
+                if (equity === null && totalAssets !== null && totalLiab !== null) { equity = totalAssets - totalLiab; src.equity = 'derived'; }
+                if (totalAssets === null && totalLiab !== null && equity !== null) { totalAssets = totalLiab + equity; src.totalAssets = 'derived'; }
+
+                // 貸借一致の検証
+                if (totalAssets !== null && totalLiab !== null && equity !== null) {
+                    const diff = totalAssets - (totalLiab + equity);
+                    if (Math.abs(diff) > Math.max(1, Math.abs(totalAssets) * 0.001)) {
+                        warnings.push(`貸借が一致しません（資産 − 負債・純資産 = ${diff.toLocaleString()}）。OCRの桁誤りが疑われます。`);
+                    }
+                }
+
+                // ---------- P/L ----------
+                let revenue = num(get('revenue'));
+                let cost = num(get('costOfSales'));
+                let gross = num(get('grossProfit'));
+                let sga = num(get('sga'));
+                let op = num(get('operatingProfit'));
+                let nonOpNet = num(get('nonOpNet'));
+                const nonOpInc = num(get('nonOpIncomeTotal'));
+                const nonOpExp = num(get('nonOpExpenseTotal'));
+                let recurring = num(get('recurringProfit'));
+                const extraInc = num(get('extraIncome'));
+                const extraLoss = num(get('extraLoss'));
+                let taxes = num(get('taxes'));
+
+                if (cost === null && revenue !== null && gross !== null) { cost = revenue - gross; src.costOfSales = 'derived'; }
+                if (cost === null) cost = 0; // 売上原価を持たないサービス業に対応
+                if (gross === null && revenue !== null) { gross = revenue - cost; src.grossProfit = 'derived'; }
+                if (sga === null && gross !== null && op !== null) { sga = gross - op; src.sga = 'derived'; }
+                if (revenue === null && gross !== null) { revenue = gross + cost; src.revenue = 'derived'; }
+
+                if (nonOpNet === null) {
+                    if (nonOpInc !== null || nonOpExp !== null) {
+                        nonOpNet = (nonOpInc || 0) - (nonOpExp || 0);
+                        src.nonOpNet = 'derived';
+                    } else if (recurring !== null && op !== null) {
+                        nonOpNet = recurring - op;
+                        src.nonOpNet = 'derived';
+                    } else {
+                        nonOpNet = 0;
+                    }
+                }
+                const extraordinary = (extraInc || 0) - (extraLoss || 0);
+                if (taxes === null) { taxes = 0; src.taxes = 'derived'; }
+
+                // 損益の整合検証（報告値があれば突き合わせる）
+                if (revenue !== null && op !== null && sga !== null) {
+                    const calcOp = revenue - cost - sga;
+                    if (Math.abs(calcOp - op) > Math.max(1, Math.abs(revenue) * 0.002)) {
+                        warnings.push(`営業利益が計算値と一致しません（記載 ${op.toLocaleString()} / 計算 ${calcOp.toLocaleString()}）。売上高・原価・販管費のいずれかを確認してください。`);
+                    }
+                }
+
+                const missing = [];
+                if (revenue === null) missing.push('売上高');
+                if (sga === null) missing.push('販売費及び一般管理費');
+                if (totalAssets === null) missing.push('資産合計');
+                if (equity === null) missing.push('純資産');
+                if (missing.length) warnings.push(`次の科目を読み取れませんでした: ${missing.join(' / ')}。レビュー画面で直接入力してください。`);
+
+                // ---------- 表示・反映用にまとめる（原単位のまま） ----------
+                const rows = [
+                    { key: 'quickAssets',        label: '当座資産（現預金・売掛金等）', value: quick,       group: 'bs' },
+                    { key: 'cash',               label: 'うち現預金',                   value: cash,        group: 'bs', optional: true },
+                    { key: 'inventory',          label: '棚卸資産',                     value: inventory,   group: 'bs' },
+                    { key: 'otherCurrentAssets', label: 'その他流動資産',               value: otherCA,     group: 'bs' },
+                    { key: 'fixedAssets',        label: '固定資産',                     value: fixedAssets, group: 'bs' },
+                    { key: 'currentLiabilities', label: '流動負債',                     value: currLiab,    group: 'bs' },
+                    { key: 'fixedLiabilities',   label: '固定負債',                     value: fixedLiab,   group: 'bs' },
+                    { key: 'equity',             label: '純資産（自己資本）',           value: equity,      group: 'bs' },
+                    { key: 'revenue',            label: '売上高',                       value: revenue,     group: 'pl' },
+                    { key: 'costOfSales',        label: '売上原価',                     value: cost,        group: 'pl' },
+                    { key: 'sga',                label: '販売費及び一般管理費',         value: sga,         group: 'pl' },
+                    { key: 'nonOpIncome',        label: '営業外損益（収益−費用）',      value: nonOpNet,    group: 'pl' },
+                    { key: 'extraordinary',      label: '特別損益（利益−損失）',        value: extraordinary, group: 'pl' },
+                    { key: 'taxes',              label: '法人税等',                     value: taxes,       group: 'pl' }
+                ].map(r => {
+                    // 表示キーと抽出キーの対応（営業外損益・特別損益は複数科目の合成）
+                    const ALIAS = { nonOpIncome: ['nonOpNet', 'nonOpIncomeTotal', 'nonOpExpenseTotal'], extraordinary: ['extraIncome', 'extraLoss'] };
+                    const keys = ALIAS[r.key] || [r.key];
+                    const hit = keys.map(k => f[k]).find(Boolean) || null;
+                    // その科目そのものがPDFに載っていた場合のみ 'pdf'。
+                    // 他の科目から計算した場合は 'derived'、値が得られなければ 'none'。
+                    const wasDerived = keys.some(k => src[k] === 'derived') || (!f[keys[0]] && hit);
+                    let source;
+                    if (f[keys[0]] && !src[keys[0]]) source = 'pdf';
+                    else if (wasDerived || r.value !== null && hit) source = 'derived';
+                    else if (r.value !== null && src[r.key]) source = 'derived';
+                    else source = 'none';
+                    return {
+                        ...r,
+                        source,
+                        evidence: hit ? hit.lineText : null,
+                        page: hit ? hit.page : null
+                    };
+                });
+
+                return {
+                    unit: ex.unit,
+                    company: ex.company,
+                    period: ex.period,
+                    rows,
+                    warnings,
+                    totals: { totalAssets, totalLiab, equity, revenue },
+                    sgaDetail: ex.sgaDetail,
+                    reported: {
+                        grossProfit: get('grossProfit'), operatingProfit: get('operatingProfit'),
+                        recurringProfit: get('recurringProfit'), netProfit: get('netProfit'),
+                        totalAssets, capitalStock: get('capitalStock')
+                    }
+                };
+            }
+
+            return {
+                linesFromTextLayer, groupIntoLines, extract, reconcile,
+                detectPageKind, detectUnit, labelKey, parseAmount, LABOR_KEYS,
+                // プレーンテキスト（コピペ）を行構造に変換する
+                linesFromPlainText(text) {
+                    return String(text).split(/\r?\n/).filter(l => l.trim()).map((l, i) => {
+                        // 1行を空白区切りのトークンに分解し、擬似的なx座標を与える
+                        const parts = l.split(/[\t　 ]+/).filter(s => s !== '');
+                        let x = 0;
+                        const tokens = parts.map(s => { const t = { s, x, y: -i, h: 10 }; x += s.length + 1; return t; });
+                        return { y: -i, tokens, text: l };
+                    });
+                }
+            };
+        })();
+
+        /* ---------------------------------------------------------------------------
+         *  OCR（スキャンPDF対応）: Tesseract.js を必要になった時だけ遅延ロードする
+         * ------------------------------------------------------------------------- */
+        const OCR = (() => {
+            const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+            let libPromise = null;
+            let worker = null;
+
+            function loadLib() {
+                if (window.Tesseract) return Promise.resolve(window.Tesseract);
+                if (libPromise) return libPromise;
+                libPromise = new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = TESSERACT_CDN;
+                    s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract.jsの読み込みに失敗しました'));
+                    s.onerror = () => reject(new Error('OCRライブラリ(Tesseract.js)を取得できませんでした。ネットワーク接続を確認してください。'));
+                    document.head.appendChild(s);
+                });
+                return libPromise;
+            }
+
+            async function getWorker(onProgress) {
+                if (worker) return worker;
+                const T = await loadLib();
+                worker = await T.createWorker('jpn', 1, {
+                    logger: m => {
+                        if (onProgress && m.status && typeof m.progress === 'number') {
+                            onProgress(m.status, m.progress);
+                        }
+                    }
+                });
+                await worker.setParameters({
+                    // 決算書は罫線表だが1列レイアウトなので単一ブロックとして扱う
+                    tessedit_pageseg_mode: '6',
+                    preserve_interword_spaces: '1'
+                });
+                return worker;
+            }
+
+            // Tesseract v5 は data.blocks 配下に行が入る（data.lines は無い場合がある）
+            function flattenLines(data) {
+                if (Array.isArray(data.lines) && data.lines.length) return data.lines;
+                const out = [];
+                (data.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => out.push(l))));
+                return out;
+            }
+
+            /** PDFの1ページを画像化してOCRし、FinReaderが扱う行構造に変換する */
+            async function recognizePage(page, onProgress) {
+                const w = await getWorker(onProgress);
+                const base = page.getViewport({ scale: 1 });
+                // OCR精度のため長辺2200px程度に拡大する（過大なメモリ消費は避ける）
+                const scale = Math.min(4, Math.max(1.5, 2200 / base.width));
+                const viewport = page.getViewport({ scale });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(viewport.width);
+                canvas.height = Math.ceil(viewport.height);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                await page.render({ canvasContext: ctx, viewport }).promise;
+
+                const { data } = await w.recognize(canvas);
+                const lines = flattenLines(data).map(l => {
+                    const words = (l.words || []).filter(x => x.text && x.text.trim());
+                    const tokens = words.length
+                        ? words.map(x => ({ s: x.text, x: x.bbox.x0, y: -x.bbox.y0, h: Math.max(8, x.bbox.y1 - x.bbox.y0) }))
+                        : [{ s: l.text || '', x: 0, y: -(l.bbox ? l.bbox.y0 : 0), h: 10 }];
+                    return { y: tokens[0].y, tokens, text: (l.text || tokens.map(t => t.s).join(' ')).trim() };
+                }).filter(l => l.text);
+
+                canvas.width = canvas.height = 0; // メモリ解放
+                return lines;
+            }
+
+            async function terminate() {
+                if (worker) { try { await worker.terminate(); } catch (e) { /* noop */ } worker = null; }
+            }
+
+            return { recognizePage, terminate, loadLib };
+        })();
+
+        /* ---------------------------------------------------------------------------
+         *  PDF読込フロー
+         * ------------------------------------------------------------------------- */
+        function pdfLog(msg, reset) {
+            const box = $('pdfParsingLogs');
+            if (!box) return;
+            box.classList.remove('hidden');
+            if (reset) box.textContent = '';
+            box.textContent += (box.textContent ? '\n' : '') + msg;
+            box.scrollTop = box.scrollHeight;
+        }
+        function pdfProgress(pct) {
+            const wrap = $('pdfProgressWrap'), bar = $('pdfProgressBar');
+            if (!wrap || !bar) return;
+            if (pct === null) { wrap.classList.add('hidden'); return; }
+            wrap.classList.remove('hidden');
+            bar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+        }
+        function pdfStatus(html) {
+            const box = $('pdfStatusAlert');
+            if (box) box.classList.remove('hidden');
+            setHtml('pdfStatusText', html);
+        }
+
+        async function handlePdfUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            // 同じファイルを選び直しても change が発火するようリセットしておく
+            if (event.target) event.target.value = '';
+            if (!file) return;
+            await readFinancialPdf(file);
+        }
+
+        async function readFinancialPdf(file) {
+            if (typeof pdfjsLib === 'undefined') {
+                pdfStatus(`<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDF.jsを読み込めていないため解析できません。ページを再読み込みしてください。`);
+                return;
+            }
+
+            pdfStatus(`<i class="fa-solid fa-spinner fa-spin mr-2"></i> PDF「${file.name}」を解析しています...`);
+            pdfLog(`ファイル: ${file.name}（${(file.size / 1024).toFixed(0)} KB）`, true);
+            pdfProgress(2);
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let fullText = '';
-                let logs = `全${pdf.numPages}ページをスキャン中...\n`;
+                const maxPagesSel = parseInt(($('ocrMaxPages') || {}).value || '10', 10);
+                const maxPages = Math.min(pdf.numPages, maxPagesSel);
+                pdfLog(`全 ${pdf.numPages} ページ / 解析対象 最大 ${maxPages} ページ`);
 
-                for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+                // --- 1st pass: 文字レイヤーの有無を判定 ---
+                const probe = Math.min(pdf.numPages, 3);
+                let probeChars = 0;
+                for (let i = 1; i <= probe; i++) {
                     const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map(item => item.str).join(' ');
-                    fullText += pageText + '\n';
+                    const lines = await FinReader.linesFromTextLayer(page);
+                    probeChars += lines.reduce((a, l) => a + l.text.replace(/\s/g, '').length, 0);
+                }
+                const isScanned = probeChars < 30;
+                pdfLog(isScanned
+                    ? `文字情報が見つかりません（${probeChars}文字）→ スキャンPDFと判定し、OCRで読み取ります。`
+                    : `文字情報を検出しました（先頭${probe}ページで${probeChars}文字）→ テキスト抽出で読み取ります。`);
+
+                if (isScanned) {
+                    pdfStatus(`<i class="fa-solid fa-spinner fa-spin mr-2"></i> スキャンPDFのためOCRで読み取っています。初回はOCR辞書(日本語)の取得に十数秒かかります...`);
+                    pdfLog('OCRエンジン(Tesseract.js 日本語)を準備中...');
+                    await OCR.loadLib();
                 }
 
-                // Process Text and extract metrics
-                const extractedName = file.name.replace(/\.[^/.]+$/, "") + ' (PDF抽出)';
-                const parseResult = processFinancialText(fullText, extractedName);
+                // --- 2nd pass: ページごとに行を取得し、必要な科目が揃ったら早期終了 ---
+                const pages = [];
+                const needed = () => {
+                    const kinds = pages.map(p => p.kind);
+                    return kinds.includes('bs') && kinds.includes('pl') && kinds.includes('sga');
+                };
 
-                logs += `【単位判定】: ${parseResult.unitDetected}\n`;
-                logs += `【抽出結果】: 売上高=¥${parseResult.data.pl.revenue}M, 資産合計=¥${parseResult.totalAssets}M, 純資産=¥${parseResult.data.bs.equity}M\n`;
-                logsBox.innerHTML = logs.replace(/\n/g, '<br>');
+                for (let i = 1; i <= maxPages; i++) {
+                    pdfProgress(5 + (i - 1) / maxPages * 85);
+                    const page = await pdf.getPage(i);
+                    let lines;
+                    if (isScanned) {
+                        pdfLog(`[${i}/${maxPages}] OCR実行中...`);
+                        lines = await OCR.recognizePage(page, (status, p) => {
+                            if (status === 'recognizing text') {
+                                pdfProgress(5 + ((i - 1) + p) / maxPages * 85);
+                            }
+                        });
+                    } else {
+                        lines = await FinReader.linesFromTextLayer(page);
+                    }
+                    const kind = FinReader.detectPageKind(lines);
+                    pages.push({ page: i, kind, lines });
+                    const kindName = { bs: '貸借対照表', pl: '損益計算書', sga: '販売費及び一般管理費', cost: '製造原価報告書', equity: '株主資本等変動計算書', notes: '個別注記表', detail: '勘定科目内訳明細書', cover: '表紙', unknown: '不明' }[kind] || kind;
+                    pdfLog(`[${i}/${maxPages}] ${kindName}（${lines.length}行）`);
 
-                // Assume uploaded PDF is current period. Keep previous period as is.
-                appState.currentPeriod = parseResult.data;
-                appState.companyName = parseResult.companyName;
-                
-                saveCustomDataCache(); // PDF解析結果を記憶
+                    // 必要な3ページが揃い、かつ以降が内訳明細書なら打ち切る（OCR時間の節約）
+                    if (needed() && kind === 'detail') {
+                        pdfLog('必要な計算書類を取得できたため、以降のページはスキップします。');
+                        break;
+                    }
+                }
+                pdfProgress(92);
 
-                alertText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i> PDF「${file.name}」の解析が完了しました。手入力ダイアログから調整できます。`;
-                
-                document.getElementById('rawDataDrawer').classList.remove('hidden');
-                resetSimulation();
-                updateAllVisuals();
-                
-                // Show completion feedback
-                showToast(`「${file.name}」の解析が完了し、図解されました！`);
-                setTimeout(closePdfStatus, 3000); // Auto close status bar
-                scrollToVisuals();
+                // --- 解析 ---
+                const ex = FinReader.extract(pages);
+                const result = FinReader.reconcile(ex);
+                result.meta = {
+                    fileName: file.name,
+                    method: isScanned ? 'OCR（スキャンPDF）' : 'テキスト抽出',
+                    pagesRead: pages.length,
+                    rawText: pages.map(p => `----- p.${p.page} (${p.kind}) -----\n` + p.lines.map(l => l.text).join('\n')).join('\n\n')
+                };
+
+                pdfLog(`単位判定: ${result.unit.name}（${result.unit.factorLabel}）`);
+                pdfLog(`企業名: ${result.company || '未検出'} / 会計期間: ${(result.period && result.period.label) || '未検出'}`);
+                result.rows.forEach(r => {
+                    pdfLog(`  ${r.label}: ${r.value === null ? '未検出' : r.value.toLocaleString()}${r.source === 'derived' ? '（他の科目から算出）' : ''}`);
+                });
+                pdfProgress(100);
+
+                openReviewModal(result);
+                pdfStatus(`<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i> 「${file.name}」を読み取りました（${result.meta.method}）。内容を確認して反映してください。`);
+                setTimeout(() => pdfProgress(null), 800);
 
             } catch (err) {
                 console.error(err);
-                alertText.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDFの解析中にエラーが発生しました。「テキスト貼り付け」または「手入力・調整」をご利用ください。`;
+                pdfProgress(null);
+                pdfStatus(`<i class="fa-solid fa-circle-exclamation text-rose-600 mr-2"></i> PDFの解析に失敗しました：${err && err.message ? err.message : '不明なエラー'}<br>「テキスト読込」または「数値調整」からの手入力をご利用ください。`);
+                pdfLog(`エラー: ${err && err.message ? err.message : err}`);
             }
         }
 
-        // Japanese Financial Text Extraction Helper Engine
-        function processFinancialText(rawText, defaultName) {
-            // 空白・改行を完全に除去したテキスト（PDF特有の文字間隔バラけ対策）
-            const noSpaceText = rawText.replace(/[\s\n\r\t　]/g, '');
+        /* ---------------------------------------------------------------------------
+         *  抽出結果レビューモーダル
+         * ------------------------------------------------------------------------- */
+        function openReviewModal(result) {
+            pendingExtraction = result;
 
-            // Detect Unit (単位)
-            let multiplier = 1; // Default assumes Millions (百万円)
-            let unitDetected = "百万円（推定）";
+            $('reviewCompanyName').value = result.company || (result.meta ? result.meta.fileName.replace(/\.[^/.]+$/, '') : '');
+            setText('reviewPeriod', (result.period && result.period.label) || '未検出');
+            setText('reviewSource', `${result.meta ? result.meta.method : '—'} / ${result.unit.name}`);
+            setText('reviewUnitLabel', result.unit.name === '不明' ? '原文の単位' : result.unit.name);
 
-            if (/単位[\s:：]*千円/i.test(rawText) || /（千円）/.test(rawText) || /単位:千円/.test(noSpaceText)) {
-                multiplier = 0.001; // Convert Thousand Yen -> Million Yen
-                unitDetected = "千円 (1/1000に自動換算)";
-            } else if (/単位[\s:：]*円/i.test(rawText) || /（円）/.test(rawText) || /\(単位:円\)/.test(noSpaceText) || /単位:円/.test(noSpaceText)) {
-                multiplier = 0.000001; // Convert Yen -> Million Yen
-                unitDetected = "円 (1/1000000に自動換算)";
-            } else if (/単位[\s:：]*百万円/i.test(rawText) || /（百万円）/.test(rawText) || /単位:百万円/.test(noSpaceText)) {
-                multiplier = 1;
-                unitDetected = "百万円";
+            // 単位が判定できなかった場合は利用者に選ばせる（誤換算は致命的なため）
+            const warnEls = [];
+            if (result.unit.multiplier === null) {
+                warnEls.push(`<div class="bg-amber-50 border border-amber-300 text-amber-900 p-2.5 rounded-lg">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>単位を判定できませんでした。</strong>
+                    金額の単位を選択してください：
+                    <select id="reviewUnitSelect" onchange="onReviewUnitChange()" class="ml-1 border border-amber-400 rounded px-1.5 py-0.5 font-bold bg-white">
+                        <option value="0.000001">円</option>
+                        <option value="0.001">千円</option>
+                        <option value="1">百万円</option>
+                    </select>
+                </div>`);
             }
+            result.warnings.forEach(w => {
+                warnEls.push(`<div class="bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-lg"><i class="fa-solid fa-circle-exclamation"></i> ${w}</div>`);
+            });
+            const warnBox = $('reviewWarnings');
+            if (warnEls.length) { warnBox.innerHTML = warnEls.join(''); warnBox.classList.remove('hidden'); }
+            else { warnBox.innerHTML = ''; warnBox.classList.add('hidden'); }
 
-            // Extract company name
-            let compName = defaultName;
-            const nameMatch = rawText.match(/(株式会社[\s　]*[^\s　\n]+|有限会社[\s　]*[^\s　\n]+|合同会社[\s　]*[^\s　\n]+)/);
-            if(nameMatch) {
-                compName = nameMatch[1].trim();
-            }
-
-            // Extract numbers near key Japanese account keywords
-            const findValue = (keywords) => {
-                // 1. まず元のテキストで正規表現検索
-                for (let kw of keywords) {
-                    const reg = new RegExp(`${kw}[\\s\\:：\\|\\t]*([△▲\\-]?\\s*[\\d,]+)`, 'i');
-                    const match = rawText.match(reg);
-                    if (match && match[1]) {
-                        let numStr = match[1].replace(/[\s,]/g, '').replace(/[△▲]/g, '-');
-                        let val = parseFloat(numStr);
-                        if (!isNaN(val) && Math.abs(val) > 0) {
-                            return val * multiplier;
-                        }
-                    }
-                }
-                
-                // 2. ヒットしなければ、空白完全除去テキストで検索（PDF文字バラけ対策）
-                for (let kw of keywords) {
-                    const kwNoSpace = kw.replace(/[\s　]/g, '');
-                    const reg = new RegExp(`${kwNoSpace}[\\:：\\|]*([△▲\\-]?\\d[\\d,]*\\d?)`, 'i');
-                    const match = noSpaceText.match(reg);
-                    if (match && match[1]) {
-                        let numStr = match[1].replace(/[,]/g, '').replace(/[△▲]/g, '-');
-                        let val = parseFloat(numStr);
-                        if (!isNaN(val) && Math.abs(val) > 0) {
-                            return val * multiplier;
-                        }
-                    }
-                }
-                return null;
+            const srcBadge = (s) => {
+                if (s === 'pdf') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">PDF</span>';
+                if (s === 'derived') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold" title="他の科目から計算">算出</span>';
+                return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">未検出</span>';
             };
 
-            // 売上高はPDFの抽出ミスで「純高上売」などのように並び替わってしまうことがあるため広めに検知
-            let rev = findValue(['売上高', '純売上高', '売上収益', '営業収益', '完成工事高', '売上総利益']);
-            if (!rev) rev = 500;
-
-            const cost = findValue(['売上原価', '営業原価', '完成工事原価']) || 0; // KINARI様のような原価0のケースに対応
-            const sga = findValue(['販売費・一般管理費計', '販売費及び一般管理費計', '販売費及び一般管理費', '販管費', '販売費・一般管理費']) || Math.round((rev - cost) * 0.8);
-            const nonOpInc = findValue(['営業外収益計', '営業外収益']) || 0;
-            const extra = findValue(['特別利益計', '特別利益']) || 0;
-            const taxes = findValue(['法人税・住民税・事業税', '法人税等', '法人税、住民税及び事業税']) || Math.round((rev - cost - sga) * 0.3);
-
-            const totalAssets = findValue(['資産の部合計', '資産合計', '総資産']) || 250;
-            const cash = findValue(['当座資産計', '現金預金計', '現金及び預金', '現金預金', '当座資産']) || Math.round(totalAssets * 0.5);
-            const inv = findValue(['棚卸資産計', '棚卸資産', '商品及び製品', 'たな卸資産']) || 0;
-            const fixed = findValue(['固定資産計', '固定資産合計', '固定資産']) || (totalAssets - cash - inv);
-
-            const equity = findValue(['純資産の部計', '純資産合計', '純資産の部合計', '株主資本合計', '自己資本合計', '自己資本']) || Math.round(totalAssets * 0.6);
-            const totalLiab = findValue(['負債の部合計', '負債合計', '負債計']) || (totalAssets - equity);
-            const currLiab = findValue(['流動負債計', '流動負債合計', '流動負債']) || Math.round(totalLiab * 0.7);
-            const fixedLiab = findValue(['固定負債計', '固定負債合計', '固定負債']) || (totalLiab - currLiab);
-
-            return {
-                unitDetected,
-                totalAssets,
-                companyName: compName,
-                data: {
-                    bs: {
-                        cashEquiv: Math.max(0, cash),
-                        inventory: Math.max(0, inv),
-                        fixedAssets: Math.max(0, fixed),
-                        currentLiabilities: Math.max(0, currLiab),
-                        fixedLiabilities: Math.max(0, fixedLiab),
-                        equity: Math.max(0, equity)
-                    },
-                    pl: {
-                        revenue: Math.max(0, rev),
-                        costOfSales: Math.max(0, cost),
-                        sga: Math.max(0, sga),
-                        nonOpIncome: nonOpInc,
-                        extraordinary: extra,
-                        taxes: Math.max(0, taxes)
-                    }
+            let html = '';
+            let group = null;
+            result.rows.forEach((r, idx) => {
+                if (r.group !== group) {
+                    group = r.group;
+                    html += `<tr class="bg-slate-50"><td colspan="4" class="px-2.5 py-1 font-bold text-[10px] text-slate-500">${group === 'bs' ? '貸借対照表 (B/S)' : '損益計算書 (P/L)'}</td></tr>`;
                 }
-            };
+                html += `<tr>
+                    <td class="px-2.5 py-1.5 font-medium text-slate-700">${r.label}</td>
+                    <td class="px-2.5 py-1.5 text-slate-400 text-[10px] max-w-[220px] truncate" title="${(r.evidence || '').replace(/"/g, '&quot;')}">${r.evidence ? `p.${r.page} ${r.evidence}` : '—'}</td>
+                    <td class="px-2.5 py-1.5 text-right">
+                        <input type="number" step="any" data-review-key="${r.key}" value="${r.value === null ? '' : r.value}"
+                               oninput="updateReviewBalance()"
+                               class="w-32 text-right border rounded px-1.5 py-0.5 font-mono ${r.source === 'none' ? 'border-rose-300 bg-rose-50' : 'border-slate-300'}">
+                    </td>
+                    <td class="px-2.5 py-1.5 text-center">${srcBadge(r.source)}</td>
+                </tr>`;
+            });
+            $('reviewTableBody').innerHTML = html;
+
+            $('reviewRawText').textContent = result.meta ? result.meta.rawText : '';
+            $('reviewRawText').classList.add('hidden');
+            $('reviewPeriodTarget').value = 'current';
+
+            updateReviewBalance();
+            $('reviewModal').classList.remove('hidden');
         }
 
-        function parsePastedText() {
-            const rawText = document.getElementById('pasteTextInput').value;
-            if (!rawText.trim()) return;
+        function onReviewUnitChange() {
+            const sel = $('reviewUnitSelect');
+            if (!sel || !pendingExtraction) return;
+            const m = parseFloat(sel.value);
+            pendingExtraction.unit.multiplier = m;
+            pendingExtraction.unit.name = m === 1 ? '百万円' : (m === 0.001 ? '千円' : '円');
+            setText('reviewUnitLabel', pendingExtraction.unit.name);
+            updateReviewBalance();
+        }
 
-            const parseResult = processFinancialText(rawText, 'テキスト解析企業');
-            appState.currentPeriod = parseResult.data;
-            appState.companyName = parseResult.companyName;
+        function readReviewInputs() {
+            const out = {};
+            document.querySelectorAll('#reviewTableBody input[data-review-key]').forEach(inp => {
+                const v = inp.value === '' ? null : parseFloat(inp.value);
+                out[inp.dataset.reviewKey] = Number.isFinite(v) ? v : null;
+            });
+            return out;
+        }
 
-            saveCustomDataCache(); // テキスト解析結果を記憶
+        function updateReviewBalance() {
+            const v = readReviewInputs();
+            const box = $('reviewBalanceCheck');
+            if (!box) return;
+            const n = k => (typeof v[k] === 'number' ? v[k] : 0);
+            const assets = n('quickAssets') + n('inventory') + n('otherCurrentAssets') + n('fixedAssets');
+            const liabEq = n('currentLiabilities') + n('fixedLiabilities') + n('equity');
+            const diff = assets - liabEq;
+            const unitName = pendingExtraction ? pendingExtraction.unit.name : '';
+            const fmt = x => Math.round(x).toLocaleString();
+            if (Math.abs(diff) <= Math.max(1, Math.abs(assets) * 0.001)) {
+                box.className = 'text-xs font-bold p-2.5 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-800';
+                box.innerHTML = `<i class="fa-solid fa-check-circle"></i> 貸借一致：資産合計 ${fmt(assets)} ${unitName} ＝ 負債・純資産合計 ${fmt(liabEq)} ${unitName}`;
+            } else {
+                box.className = 'text-xs font-bold p-2.5 rounded-lg border bg-amber-50 border-amber-300 text-amber-900';
+                box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 貸借不一致：差額 ${fmt(diff)} ${unitName}（資産 ${fmt(assets)} / 負債・純資産 ${fmt(liabEq)}）— 桁の読み違いがないか確認してください。`;
+            }
+        }
 
-            togglePasteModal();
+        function toggleRawText() {
+            const el = $('reviewRawText');
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function closeReviewModal() {
+            $('reviewModal').classList.add('hidden');
+            pendingExtraction = null;
+        }
+
+        /** レビュー画面の内容を appState に反映する */
+        function applyReviewedData() {
+            if (!pendingExtraction) return closeReviewModal();
+            const v = readReviewInputs();
+            const m = pendingExtraction.unit.multiplier;
+            if (m === null) {
+                alert('金額の単位を選択してください（円 / 千円 / 百万円）。');
+                return;
+            }
+            const conv = k => (typeof v[k] === 'number' ? v[k] * m : 0);
+
+            const target = $('reviewPeriodTarget').value;
+            const period = {
+                bs: {
+                    cashEquiv: Math.max(0, conv('quickAssets')),
+                    cash: typeof v.cash === 'number' ? Math.max(0, conv('cash')) : null,
+                    inventory: Math.max(0, conv('inventory')),
+                    otherCurrentAssets: Math.max(0, conv('otherCurrentAssets')),
+                    fixedAssets: Math.max(0, conv('fixedAssets')),
+                    currentLiabilities: Math.max(0, conv('currentLiabilities')),
+                    fixedLiabilities: Math.max(0, conv('fixedLiabilities')),
+                    equity: conv('equity')
+                },
+                pl: {
+                    revenue: Math.max(0, conv('revenue')),
+                    costOfSales: Math.max(0, conv('costOfSales')),
+                    sga: Math.max(0, conv('sga')),
+                    nonOpIncome: conv('nonOpIncome'),
+                    extraordinary: conv('extraordinary'),
+                    taxes: conv('taxes')
+                }
+            };
+
+            const name = ($('reviewCompanyName').value || '').trim();
+            if (name) appState.companyName = name;
+            if (target === 'current') {
+                appState.currentPeriod = period;
+                appState.periodLabel = (pendingExtraction.period && pendingExtraction.period.label) || null;
+                // 販管費内訳も当期分として保持する
+                const detail = (pendingExtraction.sgaDetail || [])
+                    .map(d => ({ name: d.name, value: d.value * m }))
+                    .filter(d => d.value > 0)
+                    .sort((a, b) => b.value - a.value);
+                appState.sgaDetail = detail.length ? detail : null;
+            } else {
+                appState.previousPeriod = period;
+            }
+
+            saveCustomDataCache();
+            closeReviewModal();
+            $('rawDataDrawer').classList.remove('hidden');
             resetSimulation();
             updateAllVisuals();
-            document.getElementById('rawDataDrawer').classList.remove('hidden');
-            
-            showToast("テキストの解析が完了し、図解されました！");
+            showToast(`${target === 'current' ? '当期' : '前期'}のデータとして反映し、図解を更新しました。`);
             scrollToVisuals();
+        }
+
+        /** テキスト貼り付けも同じ解析エンジン＋レビュー画面を通す */
+        function parsePastedText() {
+            const rawText = $('pasteTextInput').value;
+            if (!rawText.trim()) return;
+
+            const lines = FinReader.linesFromPlainText(rawText);
+            const pages = [{ page: 1, kind: 'unknown', lines }];
+            const result = FinReader.reconcile(FinReader.extract(pages));
+            result.meta = { fileName: 'テキスト入力', method: 'テキスト解析', pagesRead: 1, rawText };
+
+            togglePasteModal();
+            openReviewModal(result);
         }
 
         function closePdfStatus() {
@@ -2005,9 +3150,6 @@
         }
 
         function togglePdfModal() {
-            // Re-render PDF data based on current period before showing
-            const bs = appState.currentPeriod.bs;
-            const pl = appState.currentPeriod.pl;
             document.getElementById('pdfExportModal').classList.toggle('hidden');
         }
 
@@ -2015,7 +3157,7 @@
             const bs = appState.currentPeriod.bs;
             const pl = appState.currentPeriod.pl;
 
-            const currentAssets = bs.cashEquiv + bs.inventory;
+            const currentAssets = bs.cashEquiv + bs.inventory + (bs.otherCurrentAssets || 0);
             const totalAssets = currentAssets + bs.fixedAssets;
             const grossProfit = pl.revenue - pl.costOfSales;
             const operatingProfit = grossProfit - pl.sga;
@@ -2034,8 +3176,9 @@
             const invTurnoverMonths = pl.revenue > 0 ? (bs.inventory / (pl.revenue / 12)) : 0;
             const finLeverage = bs.equity > 0 ? totalAssets / bs.equity : 0;
 
-            document.getElementById('pdfReportCompanyName').textContent = appState.companyName || '対象企業';
-            document.getElementById('pdfReportDate').textContent = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            setText('pdfReportCompanyName', appState.companyName || '対象企業');
+            setText('pdfReportDate', new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                + (appState.periodLabel ? ` ／ 対象会計期間: ${appState.periodLabel}` : ''));
 
             document.getElementById('pdfKpiAssets').textContent = `¥${Math.round(totalAssets).toLocaleString()}M`;
             document.getElementById('pdfKpiRevenue').textContent = `¥${Math.round(pl.revenue).toLocaleString()}M`;
@@ -2075,9 +3218,13 @@
             document.getElementById('pdfValFinLeverage').textContent = `${finLeverage.toFixed(2)}倍`;
             document.getElementById('pdfBadgeEfficiency').textContent = assetTurnover >= 1.0 ? '良好' : '標準';
 
-            document.getElementById('pdfDescSafety').textContent = document.getElementById('descSafety').textContent;
-            document.getElementById('pdfDescProfit').textContent = document.getElementById('descProfitability').textContent;
-            document.getElementById('pdfDescEfficiency').textContent = document.getElementById('descEfficiency').textContent;
+            const copyText = (fromId, toId) => {
+                const from = $(fromId);
+                setText(toId, from ? from.textContent.trim() : '');
+            };
+            copyText('descSafety', 'pdfDescSafety');
+            copyText('descProfitability', 'pdfDescProfit');
+            copyText('descEfficiency', 'pdfDescEfficiency');
 
             let commentary = `対象「${appState.companyName}」の財務評価: 自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% です。`;
             if (opMargin >= 10 && equityRatio >= 50) {
