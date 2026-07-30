@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- PDF.js for parsing PDF on client side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- html2pdf.js for exporting visual PDF financial reports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -57,19 +59,15 @@
                     <div class="flex items-center gap-2">
                         <h1 class="font-extrabold text-xl tracking-tight text-white">FinVision</h1>
                         <span class="text-[10px] bg-indigo-700 text-indigo-200 font-medium px-2 py-0.5 rounded border border-indigo-600">決算ビジュアルアナライザー</span>
-                    </div>
-                    <p class="text-xs text-indigo-200">決算書(B/S・P/L)の図解・構造比較・自動診断ツール</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="loadSampleData('tech')" class="px-3 py-1.5 text-xs bg-indigo-800 hover:bg-indigo-700 text-indigo-100 rounded-md transition flex items-center gap-1 border border-indigo-700">
+            <div class="flex items-center space-x-2 overflow-x-auto py-1">
+                <button onclick="loadSampleData('kango')" class="px-3 py-1.5 text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-md transition flex items-center gap-1 border border-emerald-700 font-medium whitespace-nowrap">
+                    <i class="fa-solid fa-user-nurse"></i> 訪問看護サンプル
+                </button>
+                <button onclick="loadSampleData('daikichi')" class="px-3 py-1.5 text-xs bg-amber-800 hover:bg-amber-700 text-amber-100 rounded-md transition flex items-center gap-1 border border-amber-700 font-medium whitespace-nowrap">
+                    <i class="fa-solid fa-gem"></i> 買取大吉サンプル
+                </button>
+                <button onclick="loadSampleData('tech')" class="px-3 py-1.5 text-xs bg-indigo-800 hover:bg-indigo-700 text-indigo-100 rounded-md transition flex items-center gap-1 border border-indigo-700 whitespace-nowrap">
                     <i class="fa-solid fa-laptop-code"></i> SaaS/ITサンプル
-                </button>
-                <button onclick="loadSampleData('manufacture')" class="px-3 py-1.5 text-xs bg-indigo-800 hover:bg-indigo-700 text-indigo-100 rounded-md transition flex items-center gap-1 border border-indigo-700">
-                    <i class="fa-solid fa-industry"></i> 製造業サンプル
-                </button>
-                <button onclick="loadSampleData('retail')" class="px-3 py-1.5 text-xs bg-indigo-800 hover:bg-indigo-700 text-indigo-100 rounded-md transition flex items-center gap-1 border border-indigo-700">
-                    <i class="fa-solid fa-store"></i> 小売業サンプル
                 </button>
             </div>
         </div>
@@ -83,13 +81,17 @@
                 <div>
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i>
-                        決算データの読み込みと編集
+                        決算データの読み込み・分析と出力
                     </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">PDF決算短信・有価証券報告書の読み込み、または数値を直接編集してください（単位：百万円）。</p>
+                    <p class="text-xs text-slate-500 mt-0.5">PDF決算書の読み込み、手入力での編集、および診断レポート（PDF）の発行が可能です（単位：百万円）。</p>
                 </div>
                 
                 <!-- File Upload & Mode Buttons -->
                 <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <button onclick="exportPdfReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-file-arrow-down text-indigo-200"></i>
+                        <span>PDFレポート作成・出力</span>
+                    </button>
                     <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-file-pdf"></i>
                         <span>PDF解析取り込み</span>
@@ -534,87 +536,141 @@
     </main>
 
     <!-- Manual Data Entry Modal -->
-    <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+    <!-- Hidden PDF Report Modal / Template for PDF Export -->
+    <div id="pdfExportModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b pb-3">
                 <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
-                    財務データの編集（単位：百万円）
+                    <i class="fa-solid fa-file-pdf text-red-600"></i>
+                    FinVision 財務分析レポートプレビュー＆出力
                 </h3>
-                <button onclick="toggleEditModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                <div class="flex items-center gap-3">
+                    <button onclick="downloadPdfNow()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-download"></i> PDFをダウンロード
+                    </button>
+                    <button onclick="togglePdfModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
 
-            <form id="dataForm" onsubmit="saveManualData(event)" class="space-y-4 text-xs">
+            <p class="text-xs text-slate-500">※以下の内容でA4フォーマットの財務レポートPDFを自動生成します。</p>
+
+            <!-- Printable Report Document Render Area -->
+            <div id="pdfReportContent" class="bg-white p-8 border border-slate-200 rounded-xl space-y-6 text-slate-800 text-xs">
+                <!-- Report Header -->
+                <div class="border-b-2 border-indigo-900 pb-4 flex justify-between items-end">
+                    <div>
+                        <div class="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-1">FinVision Financial Analysis Report</div>
+                        <h1 id="pdfReportCompanyName" class="text-2xl font-extrabold text-slate-900">サンプル株式会社</h1>
+                        <p class="text-xs text-slate-500 mt-1">作成日時: <span id="pdfReportDate">2026/07/30</span> | 単位: 百万円</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-extrabold text-xl text-indigo-900">FinVision</div>
+                        <div class="text-[10px] text-slate-500">決算ビジュアルアナライザー</div>
+                    </div>
+                </div>
+
+                <!-- Summary KPI Cards Grid -->
                 <div>
-                    <label class="block font-semibold text-slate-700 mb-1">会社名 / タイトル</label>
-                    <input type="text" id="inputCompanyName" class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" required>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- B/S Section -->
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-                        <h4 class="font-bold text-indigo-900 text-xs border-b pb-1">貸借対照表 (B/S) 項目</h4>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">当座資産 (現金・売掛金等)</label>
-                            <input type="number" id="inputCashEquiv" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
+                    <h3 class="font-bold text-sm text-slate-900 mb-2 border-l-4 border-indigo-600 pl-2">1. 財務ハイライト・主要指標</h3>
+                    <div class="grid grid-cols-4 gap-3 text-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div class="border-r border-slate-200 pr-2">
+                            <span class="text-[10px] text-slate-500 block">総資産</span>
+                            <span id="pdfKpiAssets" class="font-bold text-slate-800 text-sm">¥0M</span>
+                        </div>
+                        <div class="border-r border-slate-200 pr-2">
+                            <span class="text-[10px] text-slate-500 block">売上高</span>
+                            <span id="pdfKpiRevenue" class="font-bold text-slate-800 text-sm">¥0M</span>
+                        </div>
+                        <div class="border-r border-slate-200 pr-2">
+                            <span class="text-[10px] text-slate-500 block">営業利益 (利益率)</span>
+                            <span id="pdfKpiOpProfit" class="font-bold text-emerald-600 text-sm">¥0M</span>
                         </div>
                         <div>
-                            <label class="block text-slate-600 mb-0.5">棚卸資産 (在庫)</label>
-                            <input type="number" id="inputInventory" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">固定資産 (有形・無形・投資)</label>
-                            <input type="number" id="inputFixedAssets" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">流動負債</label>
-                            <input type="number" id="inputCurrentLiabilities" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">固定負債</label>
-                            <input type="number" id="inputFixedLiabilities" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">純資産 (自己資本)</label>
-                            <input type="number" id="inputEquity" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                    </div>
-
-                    <!-- P/L Section -->
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-                        <h4 class="font-bold text-emerald-900 text-xs border-b pb-1">損益計算書 (P/L) 項目</h4>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">売上高</label>
-                            <input type="number" id="inputRevenue" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">売上原価</label>
-                            <input type="number" id="inputCostOfSales" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">販売費及び一般管理費 (販管費)</label>
-                            <input type="number" id="inputSGA" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">営業外収支 (受取利息等 - 支払利息等)</label>
-                            <input type="number" id="inputNonOpIncome" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">特別損益 (特別利益 - 特別損失)</label>
-                            <input type="number" id="inputExtraordinary" class="w-full border border-slate-300 rounded p-1.5" required>
-                        </div>
-                        <div>
-                            <label class="block text-slate-600 mb-0.5">法人税等コスト</label>
-                            <input type="number" id="inputTaxes" min="0" class="w-full border border-slate-300 rounded p-1.5" required>
+                            <span class="text-[10px] text-slate-500 block">自己資本比率</span>
+                            <span id="pdfKpiEquityRatio" class="font-bold text-indigo-600 text-sm">0%</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex justify-end space-x-2 pt-2 border-t">
-                    <button type="button" onclick="toggleEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium">キャンセル</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">更新して図解反映</button>
+                <!-- B/S & P/L Breakdown Tables -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- B/S Summary Table -->
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-900 mb-2 border-l-4 border-sky-600 pl-2">貸借対照表 (B/S) 構成</h3>
+                        <table class="w-full border border-slate-200 text-[11px] rounded overflow-hidden">
+                            <tr class="bg-sky-900 text-white font-bold"><td class="p-1.5">区分</td><td class="p-1.5 text-right">金額</td><td class="p-1.5 text-right">構成比</td></tr>
+                            <tbody id="pdfTbodyBs" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <!-- P/L Summary Table -->
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-900 mb-2 border-l-4 border-emerald-600 pl-2">損益計算書 (P/L) 構成</h3>
+                        <table class="w-full border border-slate-200 text-[11px] rounded overflow-hidden">
+                            <tr class="bg-emerald-900 text-white font-bold"><td class="p-1.5">区分</td><td class="p-1.5 text-right">金額</td><td class="p-1.5 text-right">売上比</td></tr>
+                            <tbody id="pdfTbodyPl" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
                 </div>
-            </form>
+
+                <!-- 3-Axis Financial Diagnosis Cards -->
+                <div>
+                    <h3 class="font-bold text-sm text-slate-900 mb-2 border-l-4 border-indigo-600 pl-2">2. 財務安全性・収益性・効率性の診断評価</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="font-bold text-xs text-emerald-800 mb-1 flex justify-between">
+                                <span>安全性分析</span>
+                                <span id="pdfBadgeSafety" class="font-bold"></span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-700 border-t pt-1.5">
+                                <li class="flex justify-between"><span>流動比率:</span> <span id="pdfValCurrentRatio" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>自己資本比率:</span> <span id="pdfValEquityRatio" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>固定比率:</span> <span id="pdfValFixedRatio" class="font-bold"></span></li>
+                            </ul>
+                            <p id="pdfDescSafety" class="mt-2 text-[10px] text-slate-600 bg-white p-1.5 rounded border border-slate-200"></p>
+                        </div>
+
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="font-bold text-xs text-indigo-800 mb-1 flex justify-between">
+                                <span>収益性分析</span>
+                                <span id="pdfBadgeProfit" class="font-bold"></span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-700 border-t pt-1.5">
+                                <li class="flex justify-between"><span>営業利益率:</span> <span id="pdfValOpMargin" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>ROA (総資産利益率):</span> <span id="pdfValROA" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>ROE (自己資本利益率):</span> <span id="pdfValROE" class="font-bold"></span></li>
+                            </ul>
+                            <p id="pdfDescProfit" class="mt-2 text-[10px] text-slate-600 bg-white p-1.5 rounded border border-slate-200"></p>
+                        </div>
+
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="font-bold text-xs text-amber-800 mb-1 flex justify-between">
+                                <span>効率性分析</span>
+                                <span id="pdfBadgeEfficiency" class="font-bold"></span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-700 border-t pt-1.5">
+                                <li class="flex justify-between"><span>総資産回転率:</span> <span id="pdfValAssetTurnover" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>棚卸資産回転期間:</span> <span id="pdfValInvTurnover" class="font-bold"></span></li>
+                                <li class="flex justify-between"><span>財務レバレッジ:</span> <span id="pdfValFinLeverage" class="font-bold"></span></li>
+                            </ul>
+                            <p id="pdfDescEfficiency" class="mt-2 text-[10px] text-slate-600 bg-white p-1.5 rounded border border-slate-200"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Integrated Summary Commentary -->
+                <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-lg">
+                    <h4 class="font-bold text-xs text-indigo-900 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-lightbulb text-indigo-600"></i>
+                        FinVision 総合財務インサイト＆アドバイス
+                    </h4>
+                    <p id="pdfOverallComment" class="text-[11px] text-indigo-950 leading-relaxed"></p>
+                </div>
+
+                <!-- Footer Sign-off -->
+                <div class="text-right text-[10px] text-slate-400 pt-2 border-t border-slate-200">
+                    FinVision Financial Visual Analyzer | Auto Generated Analysis Report
+                </div>
+            </div>
         </div>
     </div>
 
@@ -626,42 +682,52 @@
 
         // Global State Object
         let financialData = {
-            companyName: 'サンプル株式会社（IT・SaaSモデル）',
+            companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケア）',
             bs: {
-                cashEquiv: 3500,     // 当座資産
-                inventory: 1500,     // 棚卸資産
-                fixedAssets: 5000,   // 固定資産
-                currentLiabilities: 2500, // 流動負債
-                fixedLiabilities: 1500,   // 固定負債
-                equity: 6000         // 純資産
+                cashEquiv: 210,     // 当座資産 (現金・診療/介護報酬売掛金)
+                inventory: 10,      // 棚卸資産 (衛生・医療資材)
+                fixedAssets: 30,    // 固定資産 (訪問用車両・事務所設備等)
+                currentLiabilities: 80, // 流動負債
+                fixedLiabilities: 20,   // 固定負債
+                equity: 150         // 純資産
             },
             pl: {
-                revenue: 8000,       // 売上高
-                costOfSales: 3200,   // 売上原価
-                sga: 3600,           // 販管費
-                nonOpIncome: 0,      // 営業外損益
-                extraordinary: 0,    // 特別損益
-                taxes: 360           // 税金等
+                revenue: 500,       // 売上高 (訪問看護・リハビリ収益)
+                costOfSales: 320,   // 売上原価 (看護師・PT・OT人件費等)
+                sga: 110,           // 販管費 (管理事務・採用費・広報宣伝費)
+                nonOpIncome: 5,     // 営業外損益 (助成金等)
+                extraordinary: 0,   // 特別損益
+                taxes: 22           // 税金等
             }
         };
 
         // Current P/L View Mode ('block' or 'waterfall')
         let plViewMode = 'block';
 
-        // Pre-defined sample datasets for different industry types
+        // Pre-defined sample datasets including 訪問看護 and 買取大吉
         const samplePresets = {
+            kango: {
+                companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
+                bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
+                pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
+            },
+            daikichi: {
+                companyName: '株式会社エンパワー / 買取大吉（リユース・買取専門店モデル）',
+                bs: { cashEquiv: 4200, inventory: 800, fixedAssets: 1000, currentLiabilities: 2000, fixedLiabilities: 800, equity: 3200 },
+                pl: { revenue: 12000, costOfSales: 9000, sga: 1800, nonOpIncome: 100, extraordinary: 0, taxes: 390 }
+            },
             tech: {
-                companyName: 'テックイノベーションズ（SaaS・高収益）',
+                companyName: 'テックイノベーションズ（SaaS・高収益モデル）',
                 bs: { cashEquiv: 6000, inventory: 200, fixedAssets: 1800, currentLiabilities: 1500, fixedLiabilities: 500, equity: 6000 },
                 pl: { revenue: 10000, costOfSales: 2000, sga: 5500, nonOpIncome: 50, extraordinary: 0, taxes: 750 }
             },
             manufacture: {
-                companyName: 'グローバルマニュファクチャリング（製造業）',
+                companyName: 'グローバルマニュファクチャリング（製造業モデル）',
                 bs: { cashEquiv: 4000, inventory: 4000, fixedAssets: 12000, currentLiabilities: 6000, fixedLiabilities: 5000, equity: 9000 },
                 pl: { revenue: 20000, costOfSales: 14000, sga: 4000, nonOpIncome: -100, extraordinary: -200, taxes: 500 }
             },
             retail: {
-                companyName: 'フレッシュリテールチェーン（小売・流通業）',
+                companyName: 'フレッシュリテールチェーン（小売・流通業モデル）',
                 bs: { cashEquiv: 2000, inventory: 3000, fixedAssets: 5000, currentLiabilities: 4500, fixedLiabilities: 2500, equity: 3000 },
                 pl: { revenue: 15000, costOfSales: 10500, sga: 3700, nonOpIncome: -20, extraordinary: 50, taxes: 250 }
             }
@@ -1166,6 +1232,116 @@
 
         function closePdfStatus() {
             document.getElementById('pdfStatusAlert').classList.add('hidden');
+        }
+
+        // --- STREAMING_CHUNK: Implementing PDF Export logic ---
+        function togglePdfModal() {
+            const modal = document.getElementById('pdfExportModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function exportPdfReport() {
+            const bs = financialData.bs;
+            const pl = financialData.pl;
+
+            const currentAssets = bs.cashEquiv + bs.inventory;
+            const totalAssets = currentAssets + bs.fixedAssets;
+            const grossProfit = pl.revenue - pl.costOfSales;
+            const operatingProfit = grossProfit - pl.sga;
+            const recurringProfit = operatingProfit + pl.nonOpIncome;
+            const netProfit = recurringProfit + pl.extraordinary - pl.taxes;
+
+            const currentRatio = (currentAssets / bs.currentLiabilities) * 100;
+            const equityRatio = (bs.equity / totalAssets) * 100;
+            const fixedRatio = (bs.fixedAssets / bs.equity) * 100;
+
+            const opMargin = (operatingProfit / pl.revenue) * 100;
+            const roa = (netProfit / totalAssets) * 100;
+            const roe = (netProfit / bs.equity) * 100;
+
+            const assetTurnover = pl.revenue / totalAssets;
+            const invTurnoverMonths = (bs.inventory / (pl.revenue / 12));
+            const finLeverage = totalAssets / bs.equity;
+
+            // Populate Report Header & KPIs
+            document.getElementById('pdfReportCompanyName').textContent = financialData.companyName;
+            document.getElementById('pdfReportDate').textContent = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+            document.getElementById('pdfKpiAssets').textContent = `¥${totalAssets.toLocaleString()}M`;
+            document.getElementById('pdfKpiRevenue').textContent = `¥${pl.revenue.toLocaleString()}M`;
+            document.getElementById('pdfKpiOpProfit').textContent = `¥${operatingProfit.toLocaleString()}M (${opMargin.toFixed(1)}%)`;
+            document.getElementById('pdfKpiEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
+
+            // Populate Report B/S Table
+            const bsRows = [
+                `<tr><td class="p-1">流動資産 (当座+棚卸)</td><td class="p-1 text-right">¥${currentAssets.toLocaleString()}M</td><td class="p-1 text-right">${((currentAssets/totalAssets)*100).toFixed(1)}%</td></tr>`,
+                `<tr><td class="p-1">固定資産</td><td class="p-1 text-right">¥${bs.fixedAssets.toLocaleString()}M</td><td class="p-1 text-right">${((bs.fixedAssets/totalAssets)*100).toFixed(1)}%</td></tr>`,
+                `<tr class="font-bold bg-slate-100"><td class="p-1">資産合計</td><td class="p-1 text-right">¥${totalAssets.toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
+                `<tr><td class="p-1">負債合計 (流動+固定)</td><td class="p-1 text-right">¥${(bs.currentLiabilities+bs.fixedLiabilities).toLocaleString()}M</td><td class="p-1 text-right">${(((bs.currentLiabilities+bs.fixedLiabilities)/totalAssets)*100).toFixed(1)}%</td></tr>`,
+                `<tr class="font-bold bg-emerald-50"><td class="p-1">純資産 (自己資本)</td><td class="p-1 text-right">¥${bs.equity.toLocaleString()}M</td><td class="p-1 text-right">${equityRatio.toFixed(1)}%</td></tr>`
+            ];
+            document.getElementById('pdfTbodyBs').innerHTML = bsRows.join('');
+
+            // Populate Report P/L Table
+            const plRows = [
+                `<tr class="font-bold bg-slate-100"><td class="p-1">売上高</td><td class="p-1 text-right">¥${pl.revenue.toLocaleString()}M</td><td class="p-1 text-right">100.0%</td></tr>`,
+                `<tr><td class="p-1">売上原価</td><td class="p-1 text-right">¥${pl.costOfSales.toLocaleString()}M</td><td class="p-1 text-right">${((pl.costOfSales/pl.revenue)*100).toFixed(1)}%</td></tr>`,
+                `<tr><td class="p-1">販管費</td><td class="p-1 text-right">¥${pl.sga.toLocaleString()}M</td><td class="p-1 text-right">${((pl.sga/pl.revenue)*100).toFixed(1)}%</td></tr>`,
+                `<tr class="font-bold text-emerald-700 bg-emerald-50"><td class="p-1">営業利益</td><td class="p-1 text-right">¥${operatingProfit.toLocaleString()}M</td><td class="p-1 text-right">${opMargin.toFixed(1)}%</td></tr>`,
+                `<tr class="font-bold"><td class="p-1">当期純利益</td><td class="p-1 text-right">¥${netProfit.toLocaleString()}M</td><td class="p-1 text-right">${((netProfit/pl.revenue)*100).toFixed(1)}%</td></tr>`
+            ];
+            document.getElementById('pdfTbodyPl').innerHTML = plRows.join('');
+
+            // Populate Diagnosis Ratios
+            document.getElementById('pdfValCurrentRatio').textContent = `${currentRatio.toFixed(1)}%`;
+            document.getElementById('pdfValEquityRatio').textContent = `${equityRatio.toFixed(1)}%`;
+            document.getElementById('pdfValFixedRatio').textContent = `${fixedRatio.toFixed(1)}%`;
+            document.getElementById('pdfBadgeSafety').textContent = currentRatio >= 150 && equityRatio >= 50 ? '優良' : (currentRatio >= 100 ? '標準' : '注意');
+
+            document.getElementById('pdfValOpMargin').textContent = `${opMargin.toFixed(1)}%`;
+            document.getElementById('pdfValROA').textContent = `${roa.toFixed(1)}%`;
+            document.getElementById('pdfValROE').textContent = `${roe.toFixed(1)}%`;
+            document.getElementById('pdfBadgeProfit').textContent = opMargin >= 10 && roe >= 10 ? '高収益' : (opMargin >= 5 ? '良好' : '改善余地あり');
+
+            document.getElementById('pdfValAssetTurnover').textContent = `${assetTurnover.toFixed(2)}回`;
+            document.getElementById('pdfValInvTurnover').textContent = `${invTurnoverMonths.toFixed(2)}ヶ月`;
+            document.getElementById('pdfValFinLeverage').textContent = `${finLeverage.toFixed(2)}倍`;
+            document.getElementById('pdfBadgeEfficiency').textContent = assetTurnover >= 1.0 ? '良好' : '標準';
+
+            document.getElementById('pdfDescSafety').textContent = document.getElementById('descSafety').textContent;
+            document.getElementById('pdfDescProfit').textContent = document.getElementById('descProfitability').textContent;
+            document.getElementById('pdfDescEfficiency').textContent = document.getElementById('descEfficiency').textContent;
+
+            // Synthesis Overall Comment
+            let commentary = `対象企業「${financialData.companyName}」の財務状態は、自己資本比率 ${equityRatio.toFixed(1)}%、営業利益率 ${opMargin.toFixed(1)}%、ROE ${roe.toFixed(1)}% となっています。`;
+            if (opMargin >= 10 && equityRatio >= 50) {
+                commentary += "極めて健全な財務体質と優れた稼ぐ力を両立しており、自己資金による事業拡大や積極投資を推進できる良好な経営状況です。";
+            } else if (equityRatio >= 40) {
+                commentary += "安定した自己資本ベースが確立されており、継続的な営業利益の創出を通じて着実な事業基盤の強化が期待できます。";
+            } else {
+                commentary += "資金繰り・利益水準の更なる向上のため、原価や販管費の効率化、ならびに棚卸資産等の資産効率の向上が推奨されます。";
+            }
+            document.getElementById('pdfOverallComment').textContent = commentary;
+
+            togglePdfModal();
+        }
+
+        function downloadPdfNow() {
+            const reportEl = document.getElementById('pdfReportContent');
+            const cleanName = financialData.companyName.replace(/[^a-zA-Z0-9あ-んア-ン一-龠]/g, '_');
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: `FinVision_財務診断レポート_${cleanName}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            if (typeof html2pdf !== 'undefined') {
+                html2pdf().set(opt).from(reportEl).save();
+            } else {
+                window.print();
+            }
         }
     </script>
 </body>
