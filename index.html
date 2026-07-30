@@ -45,43 +45,53 @@
             background: #94a3b8;
         }
         
-        /* 初心者向け用語解説ツールチップ */
-        .tooltip-trigger {
+        /* 初心者向け用語解説ツールチップ (デフォルトOFF・トグル連動) */
+        .tooltips-enabled .tooltip-trigger {
             position: relative;
-            border-bottom: 1px dashed #94a3b8;
             cursor: help;
+            text-decoration: underline;
+            text-decoration-style: dashed;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px;
+            z-index: 10;
         }
-        .tooltip-trigger:hover::after {
+        .tooltips-enabled .tooltip-trigger:hover {
+            z-index: 9999;
+        }
+        .tooltips-enabled .tooltip-trigger:hover::after {
             content: attr(data-tooltip);
             position: absolute;
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            margin-bottom: 6px;
-            width: 220px;
-            padding: 8px 10px;
+            margin-bottom: 8px;
+            width: 240px;
+            padding: 10px 12px;
             background-color: #1e293b;
             color: #f8fafc;
             font-size: 11px;
             font-weight: normal;
-            border-radius: 6px;
+            border-radius: 8px;
             white-space: normal;
-            z-index: 50;
+            z-index: 9999;
             text-align: left;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
             pointer-events: none;
+            line-height: 1.5;
+            text-decoration: none;
         }
-        .tooltip-trigger:hover::before {
+        .tooltips-enabled .tooltip-trigger:hover::before {
             content: '';
             position: absolute;
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            margin-bottom: 0px;
+            margin-bottom: 2px;
             border-width: 6px;
             border-style: solid;
             border-color: #1e293b transparent transparent transparent;
             pointer-events: none;
+            z-index: 9999;
         }
     </style>
 </head>
@@ -95,396 +105,264 @@
                     <i class="fa-solid fa-chart-pie text-xl"></i>
                 </div>
                 <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="font-extrabold text-xl tracking-tight text-white">FinVision</h1>
-                        <span class="text-[10px] bg-indigo-700 text-indigo-200 font-medium px-2 py-0.5 rounded border border-indigo-600">決算ビジュアルアナライザー</span>
-                    </div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide">FinVision</h1>
+                    <div class="text-[10px] text-indigo-300 font-medium">決算ビジュアルアナライザー</div>
                 </div>
             </div>
-
-            <!-- Global View Mode Toggle (Single vs Comparison) -->
-            <div class="flex items-center bg-indigo-950 rounded-lg p-1 border border-indigo-800">
-                <button id="btnViewSingle" onclick="switchGlobalView('single')" class="px-3 py-1.5 text-xs rounded-md font-bold text-indigo-900 bg-white shadow-sm transition">
-                    <i class="fa-solid fa-square mr-1"></i> 単月/単期
-                </button>
-                <button id="btnViewCompare" onclick="switchGlobalView('compare')" class="px-3 py-1.5 text-xs rounded-md font-medium text-indigo-300 hover:text-white transition">
-                    <i class="fa-solid fa-code-compare mr-1"></i> 期間比較
-                </button>
-            </div>
-
-            <!-- Quick Presets -->
-            <div class="flex items-center space-x-2 overflow-x-auto py-1">
-                <button id="btnLoadedPdf" onclick="loadUploadedPdfData()" class="hidden px-3 py-1.5 text-xs bg-rose-700 hover:bg-rose-600 text-white rounded-md transition flex items-center gap-1 border border-rose-500 font-bold whitespace-nowrap shadow-sm">
-                    <i class="fa-solid fa-file-pdf"></i> 解析済みPDFデータ表示
-                </button>
-                <button onclick="loadSampleData('kango')" class="px-3 py-1.5 text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-md transition flex items-center gap-1 border border-emerald-700 font-medium whitespace-nowrap">
-                    <i class="fa-solid fa-user-nurse"></i> 訪問看護サンプル
-                </button>
-                <button onclick="loadSampleData('daikichi')" class="px-3 py-1.5 text-xs bg-amber-800 hover:bg-amber-700 text-amber-100 rounded-md transition flex items-center gap-1 border border-amber-700 font-medium whitespace-nowrap">
-                    <i class="fa-solid fa-gem"></i> 買取大吉サンプル
-                </button>
-                <button onclick="loadSampleData('tech')" class="px-3 py-1.5 text-xs bg-indigo-800 hover:bg-indigo-700 text-indigo-100 rounded-md transition flex items-center gap-1 border border-indigo-700 whitespace-nowrap">
-                    <i class="fa-solid fa-laptop-code"></i> SaaS/ITサンプル
+            <div class="flex items-center gap-3">
+                <button onclick="togglePdfModal()" class="text-xs font-bold bg-white text-indigo-900 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-pdf text-red-600"></i> レポート出力
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 w-full">
 
-        <!-- Top Input & Action Panel -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i>
-                        決算データの読み込み・手入力と分析
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">PDF決算書のアップロード、テキストの貼り付け、直接入力で数値を指定して瞬時にビジュアル化できます。</p>
-                </div>
-                
-                <!-- File Upload & Mode Buttons -->
-                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <button onclick="exportPdfReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-file-arrow-down text-indigo-200"></i>
-                        <span>PDFレポート出力</span>
-                    </button>
-                    <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-file-pdf"></i>
-                        <span>PDFファイル読み込み</span>
-                        <input type="file" id="pdfFileInput" accept="application/pdf" class="hidden" onchange="handlePdfUpload(event)">
-                    </label>
-                    <button onclick="togglePasteModal()" class="bg-sky-50 hover:bg-sky-100 text-sky-800 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-sky-200">
-                        <i class="fa-solid fa-paste"></i>
-                        <span>決算書テキスト貼り付け</span>
-                    </button>
-                    <button onclick="toggleEditModal()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-amber-300">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                        <span>数値の手入力・調整</span>
-                    </button>
-                    <button onclick="toggleRawDataDrawer()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-slate-300">
-                        <i class="fa-solid fa-table-list"></i>
-                        <span>数値一覧・照合</span>
-                    </button>
-                </div>
+        <!-- Controls: Samples, Input, Views -->
+        <div class="bg-white p-3 rounded-xl border border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shadow-sm">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-database"></i> データ:</span>
+                <button onclick="loadSampleData('tech')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">IT/SaaS</button>
+                <button onclick="loadSampleData('kango')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">訪問看護</button>
+                <button onclick="loadSampleData('daikichi')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">買取大吉</button>
+                <button id="btnLoadedPdf" onclick="loadUploadedPdfData()" class="hidden px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs rounded-md font-bold transition ml-1">
+                    <i class="fa-regular fa-file-pdf"></i> 解析済みPDF
+                </button>
             </div>
-
-            <!-- Analysis Header Alert / PDF Status -->
-            <div id="pdfStatusAlert" class="hidden p-3 rounded-lg text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 mb-3">
-                <div class="flex items-center justify-between">
-                    <span id="pdfStatusText"><i class="fa-solid fa-spinner fa-spin mr-2"></i> PDFを解析中...</span>
-                    <button onclick="closePdfStatus()" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 mr-1">
+                    <span class="text-[10px] font-bold text-slate-500 mx-2"><i class="fa-solid fa-graduation-cap"></i> 初心者解説</span>
+                    <button id="btnToggleTooltips" onclick="toggleTooltips()" class="px-3 py-1 rounded text-[10px] font-bold bg-white text-slate-500 shadow-sm border border-slate-200 transition hover:bg-slate-100">OFF</button>
                 </div>
-                <div id="pdfParsingLogs" class="mt-2 pt-2 border-t border-indigo-100 text-[11px] font-mono text-indigo-900 hidden"></div>
-            </div>
-
-            <!-- Dynamic Company Title Header -->
-            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-wrap justify-between items-center gap-4">
-                <div>
-                    <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">対象企業 / 業界モデル</span>
-                    <h3 id="displayCompanyName" class="text-xl font-bold text-slate-800">あおぞら訪問看護ステーション（医療・ヘルスケアモデル）</h3>
+                <div class="bg-slate-100 p-1 rounded-lg flex text-[11px] sm:text-xs">
+                    <button id="btnViewSingle" onclick="switchGlobalView('single')" class="px-3 py-1.5 rounded-md font-bold text-indigo-900 bg-white shadow-sm transition">単一期</button>
+                    <button id="btnViewCompare" onclick="switchGlobalView('compare')" class="px-3 py-1.5 rounded-md font-medium text-slate-500 hover:text-slate-900 transition">2期比較</button>
                 </div>
-                
-                <!-- Single Period KPIs -->
-                <div id="kpiSingle" class="flex gap-6 text-sm">
-                    <div>
-                        <span class="text-xs text-slate-500 block">総資産</span>
-                        <span id="displayTotalAssets" class="font-bold text-slate-800 text-base">¥250M</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-slate-500 block">売上高</span>
-                        <span id="displayRevenue" class="font-bold text-slate-800 text-base">¥500M</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-slate-500 block">営業利益</span>
-                        <span id="displayOperatingProfit" class="font-bold text-emerald-600 text-base">¥70M</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-slate-500 block">自己資本比率</span>
-                        <span id="displayEquityRatio" class="font-bold text-indigo-600 text-base">60.0%</span>
-                    </div>
-                </div>
-
-                <!-- Comparison KPIs (Hidden by default) -->
-                <div id="kpiCompare" class="hidden flex gap-4 text-sm bg-white p-2 rounded border border-slate-200 shadow-sm">
-                    <div class="border-r pr-4">
-                        <span class="text-[10px] text-slate-500 block font-bold">売上高 変動</span>
-                        <div class="flex items-baseline gap-2">
-                            <span id="cmpRevCurrent" class="font-bold text-slate-800 text-base">¥500M</span>
-                            <span id="cmpRevDiff" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1 rounded"><i class="fa-solid fa-caret-up"></i> +10%</span>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-slate-500 block font-bold">営業利益 変動</span>
-                        <div class="flex items-baseline gap-2">
-                            <span id="cmpOpCurrent" class="font-bold text-slate-800 text-base">¥70M</span>
-                            <span id="cmpOpDiff" class="text-xs font-bold text-rose-600 bg-rose-50 px-1 rounded"><i class="fa-solid fa-caret-down"></i> -5%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Read Numerical Data Drawer / Verification Table -->
-            <div id="rawDataDrawer" class="mt-4 pt-4 border-t border-slate-200 hidden transition-all duration-300">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-bold text-sm text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-square-check text-indigo-600"></i>
-                        読み込み数値データ照合テーブル（抽出・入力項目一覧）
-                    </h4>
-                    <div class="flex items-center gap-2">
-                        <button onclick="toggleEditModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded font-bold shadow-sm">
-                            <i class="fa-solid fa-pen-to-square mr-1"></i>この数値を修正・直接入力する
-                        </button>
-                        <span class="text-xs text-slate-500">※単位: 百万円</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- B/S Data Table -->
-                    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                        <div class="bg-sky-900 text-white px-3 py-2 text-xs font-bold flex justify-between items-center">
-                            <span><i class="fa-solid fa-scale-balanced mr-1.5"></i>貸借対照表 (B/S) 数値一覧</span>
-                            <span id="tblBsBalanceCheck" class="text-[11px] font-normal text-sky-200"></span>
-                        </div>
-                        <table class="w-full text-xs text-left text-slate-700">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr>
-                                    <th class="px-3 py-2">項目</th>
-                                    <th class="px-3 py-2 text-right">金額 (百万円)</th>
-                                    <th class="px-3 py-2 text-right">構成比 (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100" id="bsTableBody">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- P/L Data Table -->
-                    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                        <div class="bg-emerald-900 text-white px-3 py-2 text-xs font-bold flex justify-between items-center">
-                            <span><i class="fa-solid fa-file-invoice-dollar mr-1.5"></i>損益計算書 (P/L) 数値一覧</span>
-                            <span class="text-[11px] font-normal text-emerald-200">売上高対比</span>
-                        </div>
-                        <table class="w-full text-xs text-left text-slate-700">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr>
-                                    <th class="px-3 py-2">項目</th>
-                                    <th class="px-3 py-2 text-right">金額 (百万円)</th>
-                                    <th class="px-3 py-2 text-right">売上比 (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100" id="plTableBody">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <button onclick="toggleEditModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs rounded-md font-bold transition shadow-sm whitespace-nowrap">
+                    <i class="fa-solid fa-pen-to-square"></i> 数値調整
+                </button>
+                <button onclick="togglePasteModal()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[11px] sm:text-xs rounded-md font-bold transition shadow-sm whitespace-nowrap">
+                    <i class="fa-solid fa-paste"></i> テキスト読込
+                </button>
             </div>
         </div>
 
-        <!-- Visual Financial Statements Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- File Upload Status -->
+        <div id="pdfStatusAlert" class="hidden bg-sky-50 border border-sky-200 p-3 rounded-lg text-xs text-sky-800 flex justify-between items-start shadow-sm">
+            <div id="pdfStatusText" class="font-medium"></div>
+            <button onclick="closePdfStatus()" class="text-sky-500 hover:text-sky-700"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="pdfParsingLogs" class="hidden bg-slate-800 text-sky-300 font-mono text-[10px] p-3 rounded-lg mt-2 h-24 overflow-y-auto"></div>
 
-            <!-- 1. Balance Sheet (B/S) Box Diagram -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+        <!-- Main KPI & Diagrams -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            
+            <!-- Company Info & KPIs -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-100 pb-4">
                 <div>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                            <i class="fa-solid fa-scale-balanced text-indigo-600"></i>
-                            貸借対照表 (B/S) 構造図解
-                        </h3>
-                        <div class="flex items-center gap-2">
-                            <span id="bsPeriodLabelPrev" class="hidden text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">前期</span>
-                            <span id="bsPeriodLabelCurr" class="hidden text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">当期</span>
-                            <span id="bsLabelSingle" class="text-xs bg-indigo-100 text-indigo-800 font-medium px-2.5 py-0.5 rounded">左: 運用 / 右: 調達</span>
-                        </div>
+                    <h2 id="displayCompanyName" class="text-xl font-extrabold text-slate-900 tracking-tight">未設定企業</h2>
+                    <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
+                        <span><i class="fa-solid fa-calendar-check text-slate-400"></i> 最新決算期</span>
+                        <span class="bg-slate-100 px-2 py-0.5 rounded">単位: 百万円</span>
+                        <button onclick="toggleRawDataDrawer()" class="text-indigo-600 hover:underline font-bold"><i class="fa-solid fa-table"></i> 読込数値一覧表</button>
+                    </p>
+                </div>
+                <!-- KPIs hidden in compare mode -->
+                <div id="kpiSingle" class="flex flex-wrap gap-4 mt-4 md:mt-0">
+                    <div class="text-right">
+                        <span class="text-[10px] font-bold text-slate-500 block uppercase tooltip-trigger" data-tooltip="【総資産】会社が持っているすべての財産（現金、建物、在庫など）。事業規模の大きさを表します。">総資産</span>
+                        <span id="displayTotalAssets" class="text-lg font-bold text-slate-800">¥0M</span>
                     </div>
-
-                    <!-- B/S Interactive Diagram Container -->
-                    <div id="bsDiagramContainer" class="grid gap-3 h-[380px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all">
-                        
-                        <!-- PREVIOUS PERIOD B/S (Hidden in single mode) -->
-                        <div id="bsPrevPeriod" class="hidden grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity">
-                            <!-- Left: Assets Side -->
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="prevBoxCurrentAssets" class="bs-box bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>流動資産</span><span id="prevValCurrentAssets">¥0M</span></div>
-                                </div>
-                                <div id="prevBoxFixedAssets" class="bs-box bg-indigo-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>固定資産</span><span id="prevValFixedAssets">¥0M</span></div>
-                                </div>
-                            </div>
-                            <!-- Right: Liab & Eq Side -->
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="prevBoxCurrentLiabilities" class="bs-box bg-amber-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 25%;">
-                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>流動負債</span><span id="prevValCurrentLiabilities">¥0M</span></div>
-                                </div>
-                                <div id="prevBoxFixedLiabilities" class="bs-box bg-orange-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 15%;">
-                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>固定負債</span><span id="prevValFixedLiabilities">¥0M</span></div>
-                                </div>
-                                <div id="prevBoxEquity" class="bs-box bg-emerald-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm" style="height: 60%;">
-                                    <div class="font-bold flex justify-between items-center text-[10px]"><span>純資産</span><span id="prevValEquity">¥0M</span></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- CURRENT PERIOD B/S (Default Single View) -->
-                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-3 h-full">
-                            <!-- Left: Assets Side -->
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="boxCurrentAssets" class="bs-box bg-sky-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                    <div class="font-bold flex justify-between items-center">
-                                        <span><i class="fa-solid fa-money-bill-wave text-sky-200 mr-1"></i>流動資産</span>
-                                        <span id="valCurrentAssets">¥0M</span>
-                                    </div>
-                                    <div class="text-[11px] text-sky-100 flex flex-col gap-0.5 mt-1">
-                                        <div class="flex justify-between"><span>当座(現預金等):</span><span id="valCashEquiv">¥0M</span></div>
-                                        <div class="flex justify-between"><span>棚卸(在庫等):</span><span id="valInventory">¥0M</span></div>
-                                    </div>
-                                    <span class="text-[10px] text-sky-200 self-end font-semibold mt-1" id="pctCurrentAssets">0%</span>
-                                </div>
-                                <div id="boxFixedAssets" class="bs-box bg-indigo-700 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm relative overflow-hidden" style="height: 50%;">
-                                    <div class="font-bold flex justify-between items-center">
-                                        <span><i class="fa-solid fa-building text-indigo-300 mr-1"></i>固定資産</span>
-                                        <span id="valFixedAssets">¥0M</span>
-                                    </div>
-                                    <span class="text-[10px] text-indigo-300 self-end font-semibold" id="pctFixedAssets">0%</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Right: Liab & Eq Side -->
-                            <div class="flex flex-col h-full gap-1">
-                                <!-- Current Liabilities -->
-                                <div id="boxCurrentLiabilities" class="bs-box bg-amber-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 25%;">
-                                    <div class="font-bold flex justify-between items-center">
-                                        <span><i class="fa-solid fa-file-invoice text-amber-200 mr-1"></i>流動負債</span>
-                                        <span id="valCurrentLiabilities">¥0M</span>
-                                    </div>
-                                    <span class="text-[10px] text-amber-100 self-end font-semibold" id="pctCurrentLiabilities">0%</span>
-                                </div>
-
-                            <!-- Fixed Liabilities (固定負債) -->
-                            <div id="boxFixedLiabilities" class="bs-box bg-orange-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 15%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-land-mine-on-surface text-orange-200 mr-1"></i>固定負債</span>
-                                    <span id="valFixedLiabilities">¥20M</span>
-                                </div>
-                                <span class="text-[10px] text-orange-100 self-end font-semibold" id="pctFixedLiabilities">8.0%</span>
-                            </div>
-
-                            <!-- Net Assets / Equity (純資産) -->
-                            <div id="boxEquity" class="bs-box bg-emerald-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm" style="height: 60%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-shield-halved text-emerald-200 mr-1"></i>純資産 (自己資本)</span>
-                                    <span id="valEquity">¥150M</span>
-                                </div>
-                                <div class="text-[11px] text-emerald-100">
-                                    <span class="block">返済義務のない自己資金</span>
-                                </div>
-                                <span class="text-[10px] text-emerald-200 self-end font-semibold" id="pctEquity">60.0%</span>
-                            </div>
-                        </div>
+                    <div class="text-right">
+                        <span class="text-[10px] font-bold text-slate-500 block uppercase tooltip-trigger" data-tooltip="【自己資本比率】総資産のうち、借金ではない自分のお金の割合。高いほど安全な会社です。">自己資本比率</span>
+                        <span id="displayEquityRatio" class="text-lg font-bold text-indigo-600">0%</span>
+                    </div>
+                    <div class="text-right pl-4 border-l border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-500 block uppercase tooltip-trigger" data-tooltip="【売上高】本業でサービスや商品を販売して得た総額（売上）です。">売上高</span>
+                        <span id="displayRevenue" class="text-lg font-bold text-slate-800">¥0M</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] font-bold text-slate-500 block uppercase tooltip-trigger" data-tooltip="【営業利益】売上から、仕入れや経費（人件費など）を引いた本業の儲け。">営業利益</span>
+                        <span id="displayOperatingProfit" class="text-lg font-bold text-emerald-600">¥0M</span>
                     </div>
                 </div>
-
-                <!-- B/S Key Insights Footer -->
-                <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center bg-slate-50 p-2.5 rounded-lg">
-                    <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i> 資産合計 = 負債合計 + 純資産合計</span>
-                    <span id="bsBalanceCheck" class="font-bold text-emerald-600"><i class="fa-solid fa-check-circle"></i> 一致しています</span>
+                <!-- KPIs for compare mode -->
+                <div id="kpiCompare" class="hidden flex gap-4 mt-4 md:mt-0">
+                    <div class="text-right bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-500 block">当期売上高</span>
+                        <div class="flex items-end gap-2">
+                            <span id="cmpRevCurrent" class="text-lg font-bold text-slate-800">¥0M</span>
+                            <span id="cmpRevDiff" class="text-xs font-bold text-emerald-600">+0%</span>
+                        </div>
+                    </div>
+                    <div class="text-right bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-500 block">当期営業利益</span>
+                        <div class="flex items-end gap-2">
+                            <span id="cmpOpCurrent" class="text-lg font-bold text-slate-800">¥0M</span>
+                            <span id="cmpOpDiff" class="text-xs font-bold text-emerald-600">+0%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 2. Profit & Loss (P/L) Visualizer with Mode Switching -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+            <!-- Raw Data Drawer -->
+            <div id="rawDataDrawer" class="hidden mb-6">
+                <div class="bg-slate-800 rounded-xl p-4 text-slate-300 text-xs shadow-inner">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
+                        <span class="font-bold text-white"><i class="fa-solid fa-list-check"></i> 抽出・入力データ確認表</span>
+                        <button onclick="toggleRawDataDrawer()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i> 閉じる</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <table class="w-full text-left border-collapse">
+                                <thead><tr class="border-b border-slate-600 text-[10px] text-slate-400"><th class="py-1">B/S 科目</th><th class="py-1 text-right">金額</th><th class="py-1 text-right">構成比</th></tr></thead>
+                                <tbody id="bsTableBody" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <table class="w-full text-left border-collapse">
+                                <thead><tr class="border-b border-slate-600 text-[10px] text-slate-400"><th class="py-1">P/L 科目</th><th class="py-1 text-right">金額</th><th class="py-1 text-right">売上比</th></tr></thead>
+                                <tbody id="plTableBody" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualizer Grids -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- B/S Side -->
                 <div>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                            <i class="fa-solid fa-chart-column text-indigo-600"></i>
-                            損益計算書 (P/L) 図解
-                        </h3>
-                        <!-- Tab Switch for View Modes -->
-                        <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs">
-                            <button id="btnPlModeBlock" onclick="switchPlMode('block')" class="px-2.5 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm transition">
-                                <i class="fa-solid fa-cubes mr-1"></i>B/S風 構造ブロック
-                            </button>
-                            <button id="btnPlModeWaterfall" onclick="switchPlMode('waterfall')" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900 transition">
-                                <i class="fa-solid fa-chart-bar mr-1"></i>階段（ウォーターフォール）
-                            </button>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5"><i class="fa-solid fa-scale-balanced text-sky-600"></i> 貸借対照表 (B/S) 構造</h3>
+                        <div class="flex items-center gap-2">
+                            <span id="bsPeriodLabelPrev" class="hidden text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">前期</span>
+                            <span id="bsPeriodLabelCurr" class="hidden text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">当期</span>
+                            <span id="bsLabelSingle" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">左: 資産 / 右: 負債・純資産</span>
                         </div>
                     </div>
+                    
+                    <div id="bsDiagramContainer" class="grid gap-3 h-[420px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all grid-cols-1">
+                        
+                        <!-- PREV PERIOD (Hidden in single mode) -->
+                        <div id="bsPrevPeriod" class="hidden grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity flex-col">
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="prevBoxCurrentAssets" class="bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="prevValCurrentAssets">¥0M</span></div>
+                                </div>
+                                <div id="prevBoxFixedAssets" class="bg-indigo-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【固定資産】建物や機械、土地など、事業のために長く使う財産。すぐには現金化できません。">固定資産</span><span id="prevValFixedAssets">¥0M</span></div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="prevBoxCurrentLiabilities" class="bg-amber-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【流動負債】1年以内に返さなければならない借金や支払い義務。すぐに出ていくお金です。">流動負債</span><span id="prevValCurrentLiabilities">¥0M</span></div>
+                                </div>
+                                <div id="prevBoxFixedLiabilities" class="bg-orange-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【固定負債】1年を超えてゆっくり返せばよい借金。長期借入金など。">固定負債</span><span id="prevValFixedLiabilities">¥0M</span></div>
+                                </div>
+                                <div id="prevBoxEquity" class="bg-emerald-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【純資産】返す必要のない、会社自身の本当の財産（自己資本）。過去に稼いだ利益の蓄積もここに入ります。">純資産</span><span id="prevValEquity">¥0M</span></div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <!-- View Mode 1: B/S Style Block Diagram for P/L -->
-                    <div id="viewPlBlock" class="grid grid-cols-2 gap-3 h-[380px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs">
-                        <!-- Left: Revenue Total (100% Base Box) -->
-                        <div class="flex flex-col h-full">
-                            <div class="pl-box bg-indigo-700 text-white rounded-lg p-3 flex flex-col justify-between shadow-sm h-full relative overflow-hidden">
-                                <div>
-                                    <div class="font-bold flex justify-between items-center border-b border-indigo-500/50 pb-1.5 mb-2">
-                                        <span><i class="fa-solid fa-sack-dollar text-indigo-200 mr-1"></i>総売上高</span>
-                                        <span id="plBlockValRev" class="text-sm font-extrabold">¥500M</span>
+                        <!-- CURR PERIOD -->
+                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-2 h-full flex-col">
+                            <!-- Assets -->
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="boxCurrentAssets" class="bg-sky-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] relative">
+                                    <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="valCurrentAssets">¥0M</span></div>
+                                    <div class="text-[10px] text-sky-200 mt-1 space-y-0.5 hidden sm:block">
+                                        <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【現預金等】すぐに使えるお金。会社の血液のようなものです。多ければ安全ですが、多すぎると投資に回せていないとも言えます。">現預金等</span><span id="valCashEquiv">¥0M</span></div>
+                                        <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【棚卸資産(在庫)】売るために持っている商品や材料。長期間売れないと価値が下がる危険があります。">棚卸資産</span><span id="valInventory">¥0M</span></div>
                                     </div>
-                                    <p class="text-[11px] text-indigo-100 leading-relaxed">
-                                        すべての収益の源泉。右側の各コスト・費用が順に差し引かれ、最終的な利益（当期純利益）として残ります。
-                                    </p>
+                                    <span class="text-[10px] text-sky-100 self-end font-semibold mt-auto" id="pctCurrentAssets">0%</span>
                                 </div>
-                                <div class="mt-auto">
-                                    <span class="text-[10px] text-indigo-300 font-semibold uppercase block text-right">基準 (100.0%)</span>
+                                <div id="boxFixedAssets" class="bg-indigo-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【固定資産】建物や機械、ソフトウェアなど、事業のために長く使う財産。すぐには現金化できません。">固定資産</span><span id="valFixedAssets">¥0M</span></div>
+                                    <span class="text-[10px] text-indigo-200 self-end font-semibold mt-auto" id="pctFixedAssets">0%</span>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Right: Cost Allocation & Net Profit Blocks -->
-                        <div class="flex flex-col h-full gap-1">
-                            <!-- Cost of Sales Box -->
-                            <div id="plBlockCost" class="pl-box bg-rose-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 64%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-boxes-packing text-rose-200 mr-1"></i>売上原価</span>
-                                    <span id="plBlockValCost">¥320M</span>
+                            <!-- Liab & Eq -->
+                            <div class="flex flex-col h-full gap-1">
+                                <div id="boxCurrentLiabilities" class="bg-amber-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【流動負債】1年以内に返さなければならない借金や支払い義務。すぐに出ていくお金です。">流動負債</span><span id="valCurrentLiabilities">¥0M</span></div>
+                                    <span class="text-[10px] text-amber-200 self-end font-semibold mt-auto" id="pctCurrentLiabilities">0%</span>
                                 </div>
-                                <span class="text-[10px] text-rose-100 self-end font-semibold" id="plBlockPctCost">64.0%</span>
-                            </div>
-
-                            <!-- SG&A Expenses Box -->
-                            <div id="plBlockSga" class="pl-box bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 22%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-bullhorn text-amber-200 mr-1"></i>販管費</span>
-                                    <span id="plBlockValSga">¥110M</span>
+                                <div id="boxFixedLiabilities" class="bg-orange-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【固定負債】1年を超えてゆっくり返せばよい借金。長期借入金など。">固定負債</span><span id="valFixedLiabilities">¥0M</span></div>
+                                    <span class="text-[10px] text-orange-200 self-end font-semibold mt-auto" id="pctFixedLiabilities">0%</span>
                                 </div>
-                                <span class="text-[10px] text-amber-100 self-end font-semibold" id="plBlockPctSga">22.0%</span>
-                            </div>
-
-                            <!-- Non-Op / Taxes Box -->
-                            <div id="plBlockTaxOther" class="pl-box bg-slate-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 4%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-receipt text-slate-300 mr-1"></i>税・その他費用</span>
-                                    <span id="plBlockValTaxOther">¥17M</span>
+                                <div id="boxEquity" class="bg-emerald-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                    <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【純資産】返す必要のない、会社自身の本当の財産（自己資本）。過去に稼いだ利益の蓄積もここに入ります。">純資産</span><span id="valEquity">¥0M</span></div>
+                                    <span class="text-[10px] text-emerald-200 self-end font-semibold mt-auto" id="pctEquity">0%</span>
                                 </div>
-                                <span class="text-[10px] text-slate-200 self-end font-semibold" id="plBlockPctTaxOther">3.4%</span>
-                            </div>
-
-                            <!-- Net Profit (Bottom line) Box -->
-                            <div id="plBlockNet" class="pl-box bg-emerald-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm transition-all" style="height: 10%;">
-                                <div class="font-bold flex justify-between items-center">
-                                    <span><i class="fa-solid fa-piggy-bank text-emerald-200 mr-1"></i>当期純利益</span>
-                                    <span id="plBlockValNet">¥53M</span>
-                                </div>
-                                <span class="text-[10px] text-emerald-200 self-end font-semibold" id="plBlockPctNet">10.6%</span>
                             </div>
                         </div>
                     </div>
-
-                    <!-- View Mode 2: Waterfall / Comparison Chart -->
-                    <div id="viewPlWaterfall" class="h-[380px] w-full relative hidden bg-slate-50 p-2 rounded-xl border border-slate-200">
-                        <canvas id="plWaterfallChart"></canvas>
+                    <div class="flex justify-between mt-2 text-[11px]">
+                        <span id="bsBalanceCheck" class="font-bold text-emerald-600"><i class="fa-solid fa-check-circle"></i> 一致</span>
                     </div>
                 </div>
 
-                <!-- P/L Quick Summary Footer -->
-                <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center bg-slate-50 p-2.5 rounded-lg">
-                    <div>売上高営業利益率: <span id="plOpProfitMargin" class="font-bold text-indigo-600">14.0%</span></div>
-                    <div>原価率: <span id="plCostRatio" class="font-bold text-slate-700">64.0%</span></div>
-                    <div>販管比率: <span id="plSgaRatio" class="font-bold text-slate-700">22.0%</span></div>
+                <!-- P/L Side -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> 損益計算書 (P/L) 構造</h3>
+                        <div class="bg-slate-100 p-0.5 rounded flex text-[10px]">
+                            <button id="btnPlModeBlock" onclick="switchPlMode('block')" class="px-2.5 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm transition"><i class="fa-solid fa-cubes"></i> ブロック</button>
+                            <button id="btnPlModeWaterfall" onclick="switchPlMode('waterfall')" class="px-2.5 py-1 rounded-md font-medium text-slate-500 hover:text-slate-900 transition"><i class="fa-solid fa-stairs"></i> 階段図</button>
+                        </div>
+                    </div>
+                    
+                    <!-- P/L Block View -->
+                    <div id="viewPlBlock" class="grid grid-cols-2 gap-3 h-[420px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs">
+                        <div class="flex flex-col h-full">
+                            <div class="bg-indigo-700 text-white rounded-lg p-3 flex flex-col justify-between shadow-sm h-full">
+                                <div>
+                                    <div class="font-bold flex justify-between items-center border-b border-indigo-500/50 pb-1.5 mb-2">
+                                        <span class="tooltip-trigger" data-tooltip="【総売上高】会社がサービスや商品を提供して稼いだ総額。ビジネスの規模や成長を表します。"><i class="fa-solid fa-sack-dollar text-indigo-200 mr-1"></i>総売上高</span>
+                                        <span id="plBlockValRev" class="text-sm font-extrabold">¥0M</span>
+                                    </div>
+                                    <p class="text-[11px] text-indigo-100 leading-relaxed hidden sm:block">すべての収益の源泉。右側の各コスト・費用が順に差し引かれ、最終的な利益として残ります。</p>
+                                </div>
+                                <div class="mt-auto text-right text-[10px] text-indigo-300 font-semibold uppercase">基準 (100.0%)</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col h-full gap-1">
+                            <div id="plBlockCost" class="bg-rose-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【売上原価】売った商品の仕入れや製造に直接かかった費用。">売上原価</span><span id="plBlockValCost">¥0M</span></div>
+                                <span class="text-[10px] text-rose-100 self-end font-semibold mt-auto" id="plBlockPctCost">0%</span>
+                            </div>
+                            <div id="plBlockSga" class="bg-amber-500 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【販管費】販売活動や会社の維持管理にかかった費用（人件費、家賃、広告費など）。">販管費</span><span id="plBlockValSga">¥0M</span></div>
+                                <span class="text-[10px] text-amber-100 self-end font-semibold mt-auto" id="plBlockPctSga">0%</span>
+                            </div>
+                            <div id="plBlockTaxOther" class="bg-slate-600 text-white rounded-lg p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【税・他（営業外損益・税金等）】本業以外での支払い（借金の利息など）や法人税などの税金コスト。">税・他</span><span id="plBlockValTaxOther">¥0M</span></div>
+                                <span class="text-[10px] text-slate-200 self-end font-semibold mt-auto" id="plBlockPctTaxOther">0%</span>
+                            </div>
+                            <div id="plBlockNet" class="bg-emerald-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【当期純利益】すべての費用や税金を差し引いて、最終的に会社に残った利益。来期の純資産（自己資本）にプラスされます。">当期純利益</span><span id="plBlockValNet">¥0M</span></div>
+                                <span class="text-[10px] text-emerald-200 self-end font-semibold mt-auto" id="plBlockPctNet">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- P/L Waterfall View -->
+                    <div id="viewPlWaterfall" class="h-[420px] w-full relative hidden bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <canvas id="plWaterfallChart"></canvas>
+                    </div>
+
+                    <div class="flex gap-3 mt-2 text-[10px] sm:text-[11px] flex-wrap">
+                        <span class="text-slate-600"><span class="tooltip-trigger" data-tooltip="【本業の利益率】売上に対する営業利益の割合。本業の稼ぐ力を示します。">営業利益率</span>: <span id="plOpProfitMargin" class="font-bold text-slate-800">0%</span></span>
+                        <span class="text-slate-600"><span class="tooltip-trigger" data-tooltip="【原価の割合】売上に対する仕入れや製造コストの割合。低いほど利益が出やすい体質です。">原価率</span>: <span id="plCostRatio" class="font-bold text-slate-800">0%</span></span>
+                        <span class="text-slate-600"><span class="tooltip-trigger" data-tooltip="【販管費の割合】売上に対する販売費や管理費（人件費など）の割合。高すぎると利益を圧迫します。">販管費率</span>: <span id="plSgaRatio" class="font-bold text-slate-800">0%</span></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -494,7 +372,7 @@
             <h3 class="font-bold text-slate-900 text-lg mb-4 flex items-center gap-2 border-b pb-3">
                 <i class="fa-solid fa-gauge-high text-indigo-600"></i>
                 財務安全性・収益性・効率性の自動診断
-                <span class="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-normal ml-2"><i class="fa-regular fa-circle-question mr-1"></i>点線の下線をホバーで用語解説</span>
+                <span class="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-normal ml-2"><i class="fa-regular fa-circle-question mr-1"></i>上部メニューの「初心者解説」ONで用語解説を表示</span>
             </h3>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -522,40 +400,7 @@
                                 <span id="valRatioEquity" class="font-bold text-slate-800 text-sm">60.0%</span>
                             </li>
                             <li class="flex justify-between items-center">
-                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【設備投資の健全性】建物や機械を買うのに、自分のお金（自己資本）だけでまかなえているか。100%以下なら安全です。">固定比率</span>
-                                <span id="valRatioFixed" class="font-bold text-slate-800 text-sm">20.0%</span>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 leading-relaxed" id="descSafety">
-                        流動比率・自己資本比率ともに高水準です。
-                    </div>
-                </div>
-
-                <!-- 2. Profitability Ratios Card -->
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                                <i class="fa-solid fa-chart-line text-indigo-600"></i> 収益性分析
-                            </h4>
-                            <span id="badgeProfitability" class="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800">高収益</span>
-                        </div>
-                        <ul class="space-y-3 text-xs">
-                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【本業で稼ぐ力】売上のうち、本業の儲け（営業利益）が何%残ったか。これがあまりにも低いと、売れば売るほど苦しくなります。">売上高営業利益率</span>
-                                <span id="valRatioOpMargin" class="font-bold text-slate-800 text-sm">14.0%</span>
-                            </li>
-                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【全財産の運用利回り】会社にあるすべての財産を使って、どれだけ効率よく利益を出したか。5%以上あれば優秀です。">ROA (総資産利益率)</span>
-                                <span id="valRatioROA" class="font-bold text-slate-800 text-sm">21.2%</span>
-                            </li>
-                            <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【出資者の運用利回り】自分（株主）が用意したお金だけで、どれだけ効率よく利益を出したか。投資家が最も気にする数字です。">ROE (自己資本利益率)</span>
-                                <span id="valRatioROE" class="font-bold text-slate-800 text-sm">35.3%</span>
-                            </li>
-                            <li class="flex justify-between items-center">
-                                <span class="text-slate-600">売上高当期純利益率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【最終的な利益率】売上高に対して、すべての費用や税金を引いたあとに残る最終利益の割合です。">売上高当期純利益率</span>
                                 <span id="valRatioNetMargin" class="font-bold text-slate-800 text-sm">10.6%</span>
                             </li>
                         </ul>
@@ -603,12 +448,12 @@
             <!-- ★ 新機能追加: 業界比較レーダーチャート ＆ 資金繰り診断パネル -->
             <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-slate-200 pt-6">
                 <!-- 業界比較レーダーチャート -->
-                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 flex flex-col h-full">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 border-b border-slate-200 pb-3">
                         <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
                             <i class="fa-solid fa-radar-chart text-indigo-600"></i> 同業他社（業界平均）とのレーダー比較
                         </h4>
-                        <select id="industrySelect" onchange="updateRadarChart()" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <select id="industrySelect" onchange="updateRadarChart()" class="w-full sm:w-auto text-xs border border-slate-300 rounded px-2 py-1.5 bg-white focus:ring-indigo-500 focus:border-indigo-500">
                             <optgroup label="一般業界モデル">
                                 <option value="retail">小売・流通業モデル</option>
                                 <option value="it">IT・SaaS業モデル</option>
@@ -643,7 +488,7 @@
                             <!-- 現預金月商比 -->
                             <div class="bg-white p-3 rounded-lg border border-slate-200">
                                 <div class="flex justify-between items-center mb-1">
-                                    <span class="text-xs font-bold text-slate-700">手元現金の余裕（現預金月商比）</span>
+                                    <span class="text-xs font-bold text-slate-700 tooltip-trigger" data-tooltip="【手元資金の余裕度】現在の現預金が、毎月の売上（月商）の何ヶ月分あるかを示します。1.5ヶ月分以上が安全圏とされます。">手元現金の余裕（現預金月商比）</span>
                                     <span id="badgeCashFlow" class="text-[10px] px-2 py-0.5 rounded-full font-bold"></span>
                                 </div>
                                 <div class="flex items-baseline gap-2">
@@ -1134,6 +979,43 @@
             }
         };
 
+        // サンプル用プリセットデータ
+        const samplePresets = {
+            kango: {
+                companyName: 'あおぞら訪問看護ステーション',
+                currentPeriod: {
+                    bs: { cashEquiv: 210, inventory: 0, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 140 },
+                    pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 180, inventory: 0, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 100 },
+                    pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
+                }
+            },
+            daikichi: {
+                companyName: '株式会社エンパワー / 買取大吉',
+                currentPeriod: {
+                    bs: { cashEquiv: 300, inventory: 150, fixedAssets: 50, currentLiabilities: 120, fixedLiabilities: 80, equity: 300 },
+                    pl: { revenue: 1200, costOfSales: 600, sga: 400, nonOpIncome: 10, extraordinary: -5, taxes: 60 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 250, inventory: 120, fixedAssets: 60, currentLiabilities: 150, fixedLiabilities: 90, equity: 190 },
+                    pl: { revenue: 1000, costOfSales: 520, sga: 350, nonOpIncome: 5, extraordinary: 0, taxes: 40 }
+                }
+            },
+            tech: {
+                companyName: 'クラウドSaaS株式会社（ITモデル）',
+                currentPeriod: {
+                    bs: { cashEquiv: 500, inventory: 0, fixedAssets: 200, currentLiabilities: 150, fixedLiabilities: 50, equity: 500 },
+                    pl: { revenue: 800, costOfSales: 200, sga: 450, nonOpIncome: 0, extraordinary: 0, taxes: 45 }
+                },
+                previousPeriod: {
+                    bs: { cashEquiv: 400, inventory: 0, fixedAssets: 150, currentLiabilities: 120, fixedLiabilities: 60, equity: 370 },
+                    pl: { revenue: 600, costOfSales: 150, sga: 350, nonOpIncome: 0, extraordinary: 0, taxes: 30 }
+                }
+            }
+        };
+
         // Cache last extracted PDF data
         let uploadedPdfData = null;
         let plViewMode = 'block';
@@ -1351,11 +1233,20 @@
             document.getElementById('pctFixedLiabilities').textContent = `${pctFL}%`;
             document.getElementById('pctEquity').textContent = `${pctEq}%`;
 
-            document.getElementById('boxCurrentAssets').style.height = `${Math.max(5, pctCA)}%`;
-            document.getElementById('boxFixedAssets').style.height = `${Math.max(5, pctFA)}%`;
-            document.getElementById('boxCurrentLiabilities').style.height = `${Math.max(5, pctCL)}%`;
-            document.getElementById('boxFixedLiabilities').style.height = `${Math.max(5, pctFL)}%`;
-            document.getElementById('boxEquity').style.height = `${Math.max(5, pctEq)}%`;
+            // gap(余白)によるはみ出しを防ぐため、heightではなくflex-growで高さを割り当てるヘルパー
+            const setFlex = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.height = 'auto'; // インラインのheight指定をクリア
+                    el.style.flex = `${Math.max(5, val)} 1 0%`; // 最低5%の高さ保証
+                }
+            };
+
+            setFlex('boxCurrentAssets', pctCA);
+            setFlex('boxFixedAssets', pctFA);
+            setFlex('boxCurrentLiabilities', pctCL);
+            setFlex('boxFixedLiabilities', pctFL);
+            setFlex('boxEquity', pctEq);
 
             // --- B/S Visual Diagram (Previous - scaled relative to current assets if in compare mode) ---
             if (appState.viewMode === 'compare') {
@@ -1382,11 +1273,11 @@
                 document.getElementById('prevValFixedLiabilities').textContent = `¥${Math.round(pBs.fixedLiabilities)}M`;
                 document.getElementById('prevValEquity').textContent = `¥${Math.round(pBs.equity)}M`;
 
-                document.getElementById('prevBoxCurrentAssets').style.height = `${Math.max(5, pPctCA)}%`;
-                document.getElementById('prevBoxFixedAssets').style.height = `${Math.max(5, pPctFA)}%`;
-                document.getElementById('prevBoxCurrentLiabilities').style.height = `${Math.max(5, pPctCL)}%`;
-                document.getElementById('prevBoxFixedLiabilities').style.height = `${Math.max(5, pPctFL)}%`;
-                document.getElementById('prevBoxEquity').style.height = `${Math.max(5, pPctEq)}%`;
+                setFlex('prevBoxCurrentAssets', pPctCA);
+                setFlex('prevBoxFixedAssets', pPctFA);
+                setFlex('prevBoxCurrentLiabilities', pPctCL);
+                setFlex('prevBoxFixedLiabilities', pPctFL);
+                setFlex('prevBoxEquity', pPctEq);
             } else {
                 document.getElementById('bsPrevPeriod').style.height = `100%`;
                 document.getElementById('bsCurrPeriod').style.height = `100%`;
@@ -1427,7 +1318,11 @@
 
             document.getElementById('plBlockValNet').textContent = `¥${Math.round(netProfit).toLocaleString()}M`;
             document.getElementById('plBlockPctNet').textContent = `${((netProfit / rev) * 100).toFixed(1)}%`;
-            document.getElementById('plBlockNet').style.height = `${pctPlNet}%`;
+            
+            setFlex('plBlockCost', pctPlCost);
+            setFlex('plBlockSga', pctPlSga);
+            setFlex('plBlockTaxOther', pctPlOther);
+            setFlex('plBlockNet', pctPlNet);
 
             updatePlWaterfallChart(
                 appState.viewMode,
@@ -2192,6 +2087,23 @@
                     window.scrollTo({top: y, behavior: 'smooth'});
                 }
             }, 300);
+        }
+
+        // Toggle Tooltips for Beginners
+        let tooltipsEnabled = false;
+        function toggleTooltips() {
+            tooltipsEnabled = !tooltipsEnabled;
+            const btn = document.getElementById('btnToggleTooltips');
+            if (tooltipsEnabled) {
+                document.body.classList.add('tooltips-enabled');
+                btn.textContent = 'ON';
+                btn.className = "px-3 py-1 rounded text-[10px] font-bold bg-indigo-500 text-white shadow-sm border border-indigo-600 transition";
+                showToast("初心者向けの用語解説（点線下線）をONにしました。");
+            } else {
+                document.body.classList.remove('tooltips-enabled');
+                btn.textContent = 'OFF';
+                btn.className = "px-3 py-1 rounded text-[10px] font-bold bg-white text-slate-500 shadow-sm border border-slate-200 transition hover:bg-slate-100";
+            }
         }
     </script>
 </body>
