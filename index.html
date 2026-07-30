@@ -2229,7 +2229,10 @@
                 return toHalfWidth(String(s || ''))
                     .replace(/[\s　]/g, '')
                     .replace(/[・･、,.:|]/g, '')
-                    .replace(/[()【】\[\]{}<>《》]/g, '');
+                    .replace(/[()【】\[\]{}<>《》]/g, '')
+                    // 罫線や引用符を科目名の一部として誤認するケースを除去する。
+                    // 例: 「棚 人 卸 資 産 計 ーー」→「棚人卸資産計」
+                    .replace(/["'“”‘’`_~^+=\-]/g, '');
             }
 
             // 日本語OCRは数字を丸数字・全角数字・漢数字として出力することがある。
@@ -2270,6 +2273,45 @@
                 const v = parseInt(s, 10);
                 if (!Number.isFinite(v)) return null;
                 return negative ? -v : v;
+            }
+
+            // OCRは桁区切りの空白を単語境界として扱い、
+            // 「15,440,928」を「15,」「440,」「928」の3トークンに分けることがある。
+            // 同じ金額を構成する近接トークンだけを結合し、比較列など離れた金額は分離する。
+            function mergeAmountTokens(tokens) {
+                const groups = [];
+                for (const token of tokens) {
+                    const prev = groups[groups.length - 1];
+                    const previousToken = prev && prev.lastToken;
+                    const prevRaw = prev ? prev.raw : '';
+                    const nextRaw = token.raw;
+                    const h = Math.max(8, token.h || (previousToken && previousToken.h) || 10);
+                    const estimatedPrevEnd = previousToken
+                        ? previousToken.x + Math.max(1, previousToken.raw.length) * h * 0.55
+                        : -Infinity;
+                    const gap = token.x - estimatedPrevEnd;
+                    const isNearby = previousToken && token.x >= previousToken.x && gap <= Math.max(12, h * 1.5);
+                    // 通常の「15, + 440, + 928」に加え、区切りが1つ消えた
+                    // 「4 + 408, + 000」も救済する。単なる「100 200」は結合しない。
+                    const continuesThousands = /[,.]$/.test(prevRaw)
+                        || /^\d{3}[,.]/.test(nextRaw);
+
+                    if (prev && isNearby && continuesThousands) {
+                        prev.raw += nextRaw;
+                        prev.lastToken = token;
+                        prev.value = parseAmount(prev.raw);
+                    } else {
+                        groups.push({
+                            raw: nextRaw,
+                            value: token.value,
+                            x: token.x,
+                            lastToken: token
+                        });
+                    }
+                }
+                return groups
+                    .filter(group => group.value !== null)
+                    .map(({ value, x, raw }) => ({ value, x, raw }));
             }
 
             // ---- あいまい一致（OCRの1〜2文字誤認を許容） -------------------------------
@@ -2484,18 +2526,19 @@
                 // 数字とみなす文字（OCRが数字を誤認して出す記号も含む）だけで構成された
                 // トークンを金額候補とする。丸数字・全角数字は事前に算用数字へ戻す。
                 const numRe = /^[△▲(\-]?[\d,\.OolIS|B$Z]*\d[\d,\.OolIS|B$Z]*\)?$/;
-                let labelParts = [], nums = [], seenNumber = false;
+                let labelParts = [], numTokens = [], seenNumber = false;
                 for (const t of line.tokens) {
                     const raw = normalizeDigits(toHalfWidth(t.s)).trim();
                     if (!raw) continue;
                     const looksNumeric = numRe.test(raw) && /\d/.test(raw) && parseAmount(raw) !== null;
                     if (looksNumeric) {
                         seenNumber = true;
-                        nums.push({ value: parseAmount(raw), x: t.x, raw });
+                        numTokens.push({ value: parseAmount(raw), x: t.x, h: t.h, raw });
                     } else if (!seenNumber) {
                         labelParts.push(toHalfWidth(t.s).trim());
                     }
                 }
+                let nums = mergeAmountTokens(numTokens);
                 // 1つのトークンに「科目名+金額」がまとまっている場合（OCR行やコピペ）に対応
                 if (!nums.length) {
                     const whole = normalizeDigits(toHalfWidth(line.text));
@@ -2641,11 +2684,30 @@
                 let fixedLiab = num(get('fixedLiabilities'));
                 let totalLiab = num(get('totalLiabilities'));
                 let equity = num(get('equity'));
+                const reportedLiabAndEquity = num(get('totalLiabAndEquity'));
 
                 if (totalLiab === null && currLiab !== null && fixedLiab !== null) { totalLiab = currLiab + fixedLiab; src.totalLiabilities = 'derived'; }
                 if (fixedLiab === null && totalLiab !== null && currLiab !== null) { fixedLiab = totalLiab - currLiab; src.fixedLiabilities = 'derived'; }
                 if (currLiab === null && totalLiab !== null && fixedLiab !== null) { currLiab = totalLiab - fixedLiab; src.currentLiabilities = 'derived'; }
-                if (equity === null && totalAssets !== null && totalLiab !== null) { equity = totalAssets - totalLiab; src.equity = 'derived'; }
+                if (equity === null && totalAssets !== null && totalLiab !== null) {
+                    equity = totalAssets - totalLiab;
+                    src.equity = 'derived';
+                }
+
+                // 純資産は数字の先頭に余分な1桁が混ざるOCR誤認が起きやすい。
+                // 資産側合計と負債・純資産側合計が独立に一致している場合だけ、
+                // 負債合計との差額を信頼して純資産を補正する。
+                if (totalAssets !== null && reportedLiabAndEquity !== null && totalLiab !== null && equity !== null) {
+                    const totalTolerance = Math.max(1, Math.abs(totalAssets) * 0.001);
+                    if (Math.abs(totalAssets - reportedLiabAndEquity) <= totalTolerance) {
+                        const impliedEquity = totalAssets - totalLiab;
+                        if (Math.abs(equity - impliedEquity) > totalTolerance) {
+                            warnings.push(`純資産のOCR値 ${equity.toLocaleString()} を、貸借両側の合計から ${impliedEquity.toLocaleString()} に補正しました。`);
+                            equity = impliedEquity;
+                            src.equity = 'derived';
+                        }
+                    }
+                }
                 if (totalAssets === null && totalLiab !== null && equity !== null) { totalAssets = totalLiab + equity; src.totalAssets = 'derived'; }
 
                 // 貸借一致の検証
