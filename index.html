@@ -2232,17 +2232,41 @@
                     .replace(/[()【】\[\]{}<>《》]/g, '');
             }
 
+            // 日本語OCRは数字を丸数字・全角数字・漢数字として出力することがある。
+            // （例: 26,193,211 → 「⑥, ⑧②③, ⑧0④」）これらを算用数字へ戻す。
+            const CIRCLED = '⓪①②③④⑤⑥⑦⑧⑨';
+            const CIRCLED2 = '⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+            // 注: 漢数字（一二三…）は変換しない。決算書の科目名は1文字ずつ
+            // 分割されて現れるため、「一般管理費」の「一」を数字とみなすと
+            // 科目名が壊れ、ありもしない金額を拾ってしまう。
+            function normalizeDigits(s) {
+                let out = '';
+                for (const ch of s) {
+                    const ci = CIRCLED.indexOf(ch);
+                    if (ci >= 0) { out += String(ci); continue; }
+                    const c2 = CIRCLED2.indexOf(ch);
+                    if (c2 >= 0) { out += String(c2 + 10); continue; }
+                    const fw = '０１２３４５６７８９'.indexOf(ch);
+                    if (fw >= 0) { out += String(fw); continue; }
+                    out += ch;
+                }
+                return out;
+            }
+
             // OCRが数字を誤認しやすいパターンを補正してから数値化する。
             function parseAmount(raw) {
-                let s = toHalfWidth(String(raw || '')).replace(/[\s　]/g, '');
-                let negative = /[△▲]/.test(s) || /^-/.test(s) || /^\(.*\)$/.test(s);
+                let s = normalizeDigits(toHalfWidth(String(raw || ''))).replace(/[\s　]/g, '');
+                const negative = /[△▲]/.test(s) || /^-/.test(s) || /^\(.*\)$/.test(s);
                 s = s.replace(/[△▲()]/g, '').replace(/^-/, '');
-                // OCR頻出誤認: O/o→0, l/I→1, S→5, B→8, Z→2
-                s = s.replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
-                s = s.replace(/[^0-9,.]/g, '');
-                // 桁区切りとしてのカンマ/ピリオドを除去（決算書に小数は現れない）
-                s = s.replace(/[,.]/g, '');
-                if (!/^\d+$/.test(s)) return null;
+                // OCR頻出誤認: O/o/Q→0, l/I/|→1, S/$→5, B→8, Z→2, G→6, T→7
+                s = s.replace(/[OoQ□]/g, '0').replace(/[lI|!]/g, '1').replace(/[S$]/g, '5')
+                     .replace(/B/g, '8').replace(/Z/g, '2').replace(/G/g, '6').replace(/T/g, '7');
+                // 桁区切りとして誤認されがちな記号をすべてカンマ相当として除去
+                s = s.replace(/[,.、。・･:;'"^~\-\/\\±+*=＝]/g, '');
+                s = s.replace(/[^0-9]/g, '');
+                if (!/^\d+$/.test(s) || s.length === 0) return null;
+                // 桁区切り記号まみれの誤認で異常な桁数になったものは棄却する
+                if (s.length > 15) return null;
                 const v = parseInt(s, 10);
                 if (!Number.isFinite(v)) return null;
                 return negative ? -v : v;
@@ -2457,22 +2481,24 @@
             // 決算書の1行は「科目名（文字）… 金額（数字）」。数字が現れる直前までを
             // ラベルとみなし、行内の数値トークンを x 座標付きで集める。
             function splitLine(line) {
-                const numRe = /^[△▲(\-]?[\d,\.OolIS|B]*\d[\d,\.OolIS|B]*\)?$/;
+                // 数字とみなす文字（OCRが数字を誤認して出す記号も含む）だけで構成された
+                // トークンを金額候補とする。丸数字・全角数字は事前に算用数字へ戻す。
+                const numRe = /^[△▲(\-]?[\d,\.OolIS|B$Z]*\d[\d,\.OolIS|B$Z]*\)?$/;
                 let labelParts = [], nums = [], seenNumber = false;
                 for (const t of line.tokens) {
-                    const raw = toHalfWidth(t.s).trim();
+                    const raw = normalizeDigits(toHalfWidth(t.s)).trim();
                     if (!raw) continue;
                     const looksNumeric = numRe.test(raw) && /\d/.test(raw) && parseAmount(raw) !== null;
                     if (looksNumeric) {
                         seenNumber = true;
                         nums.push({ value: parseAmount(raw), x: t.x, raw });
                     } else if (!seenNumber) {
-                        labelParts.push(raw);
+                        labelParts.push(toHalfWidth(t.s).trim());
                     }
                 }
                 // 1つのトークンに「科目名+金額」がまとまっている場合（OCR行やコピペ）に対応
                 if (!nums.length) {
-                    const whole = toHalfWidth(line.text);
+                    const whole = normalizeDigits(toHalfWidth(line.text));
                     const mm = [...whole.matchAll(/([△▲\-(]?\d[\d,]*\)?)/g)];
                     if (mm.length) {
                         const firstIdx = whole.indexOf(mm[0][1]);
@@ -2769,22 +2795,35 @@
                 return libPromise;
             }
 
-            async function getWorker(onProgress) {
-                if (worker) return worker;
+            // 日本語モデル(jpn)は数字を丸数字・全角数字として出力しがちで、
+            // 「26,193,211」が「⑥,⑧②③,⑧0④」のように壊れる。そこで
+            //   ・科目名  … jpn モデル
+            //   ・金額    … eng モデル＋数字ホワイトリスト
+            // の2パスを実行し、y座標で突き合わせて1行に合成する。
+            const workers = { text: null, num: null };
+
+            async function getWorker(kind, onProgress) {
+                if (workers[kind]) return workers[kind];
                 const T = await loadLib();
-                worker = await T.createWorker('jpn', 1, {
-                    logger: m => {
-                        if (onProgress && m.status && typeof m.progress === 'number') {
-                            onProgress(m.status, m.progress);
-                        }
-                    }
-                });
-                await worker.setParameters({
-                    // 決算書は罫線表だが1列レイアウトなので単一ブロックとして扱う
-                    tessedit_pageseg_mode: '6',
-                    preserve_interword_spaces: '1'
-                });
-                return worker;
+                const logger = m => {
+                    if (onProgress && m.status && typeof m.progress === 'number') onProgress(m.status, m.progress);
+                };
+                if (kind === 'text') {
+                    workers.text = await T.createWorker('jpn', 1, { logger });
+                    await workers.text.setParameters({
+                        tessedit_pageseg_mode: '6', // 単一ブロックとして扱う
+                        preserve_interword_spaces: '1'
+                    });
+                } else {
+                    workers.num = await T.createWorker('eng', 1, { logger });
+                    await workers.num.setParameters({
+                        tessedit_pageseg_mode: '6',
+                        preserve_interword_spaces: '1',
+                        // 金額欄に現れる文字だけに限定して誤認を防ぐ
+                        tessedit_char_whitelist: '0123456789,.-()'
+                    });
+                }
+                return workers[kind];
             }
 
             // Tesseract v5 は data.blocks 配下に行が入る（data.lines は無い場合がある）
@@ -2795,36 +2834,106 @@
                 return out;
             }
 
-            /** PDFの1ページを画像化してOCRし、FinReaderが扱う行構造に変換する */
-            async function recognizePage(page, onProgress) {
-                const w = await getWorker(onProgress);
+            /** PDFページを白背景・高解像度で描画し、二値化してスキャンのカスレを整える */
+            async function renderPage(page) {
                 const base = page.getViewport({ scale: 1 });
-                // OCR精度のため長辺2200px程度に拡大する（過大なメモリ消費は避ける）
-                const scale = Math.min(4, Math.max(1.5, 2200 / base.width));
+                // OCR精度のため長辺2600px程度に拡大する（過大なメモリ消費は避ける）
+                const scale = Math.min(4, Math.max(2, 2600 / base.width));
                 const viewport = page.getViewport({ scale });
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.ceil(viewport.width);
                 canvas.height = Math.ceil(viewport.height);
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 await page.render({ canvasContext: ctx, viewport }).promise;
 
-                const { data } = await w.recognize(canvas);
-                const lines = flattenLines(data).map(l => {
+                // FAX画質のスキャンは中間調のにじみが誤認の原因になるため単純二値化する
+                try {
+                    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const d = img.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const v = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) < 176 ? 0 : 255;
+                        d[i] = d[i + 1] = d[i + 2] = v;
+                    }
+                    ctx.putImageData(img, 0, 0);
+                } catch (e) { /* 二値化に失敗しても元画像でOCRを続行する */ }
+                return canvas;
+            }
+
+            /** 認識結果を {text, bbox} の行配列へ変換する */
+            function toLineObjects(data) {
+                return flattenLines(data).map(l => {
                     const words = (l.words || []).filter(x => x.text && x.text.trim());
-                    const tokens = words.length
-                        ? words.map(x => ({ s: x.text, x: x.bbox.x0, y: -x.bbox.y0, h: Math.max(8, x.bbox.y1 - x.bbox.y0) }))
-                        : [{ s: l.text || '', x: 0, y: -(l.bbox ? l.bbox.y0 : 0), h: 10 }];
-                    return { y: tokens[0].y, tokens, text: (l.text || tokens.map(t => t.s).join(' ')).trim() };
+                    const bbox = l.bbox || { y0: 0, y1: 10, x0: 0, x1: 0 };
+                    return {
+                        text: (l.text || words.map(w => w.text).join(' ')).trim(),
+                        yMid: (bbox.y0 + bbox.y1) / 2,
+                        h: Math.max(8, bbox.y1 - bbox.y0),
+                        words: words.map(x => ({
+                            s: x.text, x: x.bbox.x0,
+                            yMid: (x.bbox.y0 + x.bbox.y1) / 2,
+                            h: Math.max(8, x.bbox.y1 - x.bbox.y0),
+                            conf: x.confidence
+                        }))
+                    };
                 }).filter(l => l.text);
+            }
+
+            /**
+             * PDFの1ページをOCRし、FinReaderが扱う行構造に変換する。
+             * 科目名(jpn)と金額(eng+数字限定)を別々に認識し、y座標で対応付ける。
+             */
+            async function recognizePage(page, onProgress) {
+                const canvas = await renderPage(page);
+
+                const wText = await getWorker('text', onProgress);
+                const textLines = toLineObjects((await wText.recognize(canvas)).data);
+
+                let numWords = [];
+                try {
+                    const wNum = await getWorker('num', onProgress);
+                    const numLines = toLineObjects((await wNum.recognize(canvas)).data);
+                    numLines.forEach(l => {
+                        l.words.forEach(w => {
+                            const clean = w.s.replace(/\s/g, '');
+                            const digits = clean.replace(/[^0-9]/g, '');
+                            // 数字パスは科目名の領域でも無理に数字として読もうとするため、
+                            // 「大半が数字」かつ「一定の信頼度がある」語だけを金額候補にする。
+                            if (!digits.length || digits.length > 15) return;
+                            if (digits.length / clean.length < 0.5) return;
+                            if (typeof w.conf === 'number' && w.conf < 30) return;
+                            numWords.push(w);
+                        });
+                    });
+                } catch (e) {
+                    console.warn('数値OCRパスに失敗しました。日本語パスの結果のみ使用します。', e);
+                }
+
+                // 行ごとに、y座標が重なる金額候補を右側の列として差し替える
+                const lines = textLines.map(l => {
+                    const tol = Math.max(10, l.h * 0.7);
+                    const mine = numWords.filter(w => Math.abs(w.yMid - l.yMid) <= tol)
+                                         .sort((a, b) => a.x - b.x);
+                    // 科目名は日本語パスから、金額は数値パスから採用する。
+                    // 数値パスが何も拾えなかった行は日本語パスの語をそのまま使う。
+                    const labelWords = l.words.filter(w => !/\d/.test(w.s) || mine.length === 0);
+                    const tokens = [
+                        ...labelWords.map(w => ({ s: w.s, x: w.x, y: -l.yMid, h: w.h })),
+                        ...mine.map(w => ({ s: w.s, x: w.x, y: -l.yMid, h: w.h }))
+                    ].sort((a, b) => a.x - b.x);
+                    if (!tokens.length) return null;
+                    return { y: -l.yMid, tokens, text: tokens.map(t => t.s).join(' ') };
+                }).filter(Boolean);
 
                 canvas.width = canvas.height = 0; // メモリ解放
                 return lines;
             }
 
             async function terminate() {
-                if (worker) { try { await worker.terminate(); } catch (e) { /* noop */ } worker = null; }
+                for (const k of Object.keys(workers)) {
+                    if (workers[k]) { try { await workers[k].terminate(); } catch (e) { /* noop */ } workers[k] = null; }
+                }
             }
 
             return { recognizePage, terminate, loadLib };
@@ -3055,6 +3164,19 @@
             const diff = assets - liabEq;
             const unitName = pendingExtraction ? pendingExtraction.unit.name : '';
             const fmt = x => Math.round(x).toLocaleString();
+
+            // 全項目が0のときに「貸借一致」と表示すると読み取り失敗を見落とすため、
+            // 未入力として明示する。
+            const filled = ['quickAssets', 'inventory', 'otherCurrentAssets', 'fixedAssets',
+                            'currentLiabilities', 'fixedLiabilities', 'equity', 'revenue']
+                            .filter(k => typeof v[k] === 'number' && v[k] !== 0).length;
+            if (filled === 0) {
+                box.className = 'text-xs font-bold p-2.5 rounded-lg border bg-rose-50 border-rose-300 text-rose-800';
+                box.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> 金額をひとつも読み取れていません。`
+                    + `「読み取った生テキストを表示」で認識結果を確認のうえ、決算書を見ながら各欄に直接入力するか、`
+                    + `キャンセルして「数値調整」から手入力してください。`;
+                return;
+            }
             if (Math.abs(diff) <= Math.max(1, Math.abs(assets) * 0.001)) {
                 box.className = 'text-xs font-bold p-2.5 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-800';
                 box.innerHTML = `<i class="fa-solid fa-check-circle"></i> 貸借一致：資産合計 ${fmt(assets)} ${unitName} ＝ 負債・純資産合計 ${fmt(liabEq)} ${unitName}`;
@@ -3082,6 +3204,10 @@
             if (m === null) {
                 alert('金額の単位を選択してください（円 / 千円 / 百万円）。');
                 return;
+            }
+            // 売上高が0のまま反映すると全指標が0除算・無意味な値になるため確認する
+            if (!v.revenue) {
+                if (!confirm('売上高が入力されていません。このまま反映すると収益性の指標が算出できません。\n\n決算書の売上高を入力してから反映することを推奨します。このまま続けますか？')) return;
             }
             const conv = k => (typeof v[k] === 'number' ? v[k] * m : 0);
 
