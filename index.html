@@ -609,10 +609,21 @@
                             <i class="fa-solid fa-radar-chart text-indigo-600"></i> 同業他社（業界平均）とのレーダー比較
                         </h4>
                         <select id="industrySelect" onchange="updateRadarChart()" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="retail">小売・流通業モデル</option>
-                            <option value="it">IT・SaaS業モデル</option>
-                            <option value="medical" selected>医療・福祉モデル</option>
-                            <option value="manufacturing">製造業モデル</option>
+                            <optgroup label="一般業界モデル">
+                                <option value="retail">小売・流通業モデル</option>
+                                <option value="it">IT・SaaS業モデル</option>
+                                <option value="manufacturing">製造業モデル</option>
+                            </optgroup>
+                            <optgroup label="医療・介護・福祉特化モデル">
+                                <option value="medical" selected>医療・福祉モデル (全般)</option>
+                                <option value="kaigo">介護事業 (総合)</option>
+                                <option value="dayservice">通所介護 (デイサービス)</option>
+                                <option value="kanta">看護小規模多機能型居宅介護</option>
+                                <option value="kyotaku">居宅介護支援事業所</option>
+                            </optgroup>
+                            <optgroup label="専門サービス・小売モデル">
+                                <option value="reuse">リユース業 (買取専門モデル)</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="h-[250px] w-full relative">
@@ -1133,8 +1144,15 @@
         const benchmarks = {
             retail: { name: '小売・流通', current: 120, equity: 30, opMargin: 4, roe: 8, turnover: 2.0 },
             it: { name: 'IT・SaaS', current: 180, equity: 60, opMargin: 15, roe: 15, turnover: 0.8 },
-            medical: { name: '医療・福祉', current: 150, equity: 40, opMargin: 8, roe: 10, turnover: 1.2 },
-            manufacturing: { name: '製造', current: 140, equity: 50, opMargin: 6, roe: 7, turnover: 1.0 }
+            medical: { name: '医療・福祉(全般)', current: 150, equity: 40, opMargin: 8, roe: 10, turnover: 1.2 },
+            manufacturing: { name: '製造', current: 140, equity: 50, opMargin: 6, roe: 7, turnover: 1.0 },
+            // 新規追加: 介護・福祉系モデル
+            kaigo: { name: '介護(総合)', current: 150, equity: 40, opMargin: 6, roe: 8, turnover: 1.5 },
+            dayservice: { name: 'デイサービス', current: 140, equity: 35, opMargin: 5, roe: 7, turnover: 1.2 },
+            kanta: { name: '看護小規模多機能', current: 130, equity: 30, opMargin: 8, roe: 10, turnover: 1.0 }, // 施設・設備投資が重め
+            kyotaku: { name: '居宅介護支援', current: 200, equity: 60, opMargin: 10, roe: 15, turnover: 3.0 }, // 設備不要・人件費メインで回転率が高い
+            // 新規追加: リユース業モデル
+            reuse: { name: 'リユース業(買取)', current: 180, equity: 45, opMargin: 12, roe: 15, turnover: 2.5 } // 粗利率が高く、在庫回転が早い
         };
 
         window.onload = function() {
