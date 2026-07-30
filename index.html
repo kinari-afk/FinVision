@@ -44,6 +44,45 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        
+        /* 初心者向け用語解説ツールチップ */
+        .tooltip-trigger {
+            position: relative;
+            border-bottom: 1px dashed #94a3b8;
+            cursor: help;
+        }
+        .tooltip-trigger:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 6px;
+            width: 220px;
+            padding: 8px 10px;
+            background-color: #1e293b;
+            color: #f8fafc;
+            font-size: 11px;
+            font-weight: normal;
+            border-radius: 6px;
+            white-space: normal;
+            z-index: 50;
+            text-align: left;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+        .tooltip-trigger:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 0px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 min-h-screen flex flex-col">
@@ -451,10 +490,11 @@
         </div>
 
         <!-- Financial Analysis Dashboard Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6" id="analysisDashboard">
             <h3 class="font-bold text-slate-900 text-lg mb-4 flex items-center gap-2 border-b pb-3">
                 <i class="fa-solid fa-gauge-high text-indigo-600"></i>
                 財務安全性・収益性・効率性の自動診断
+                <span class="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-normal ml-2"><i class="fa-regular fa-circle-question mr-1"></i>点線の下線をホバーで用語解説</span>
             </h3>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -470,24 +510,24 @@
                         </div>
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="流動資産 ÷ 流動負債">流動比率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【1年以内に倒産しないか？】1年以内に現金化できる資産と、1年以内に返す借金のバランス。100%未満だと手元資金がショートする危険があります。">流動比率</span>
                                 <span id="valRatioCurrent" class="font-bold text-slate-800 text-sm">275.0%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="当座資産 ÷ 流動負債">当座比率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【より厳しい支払い能力】在庫などを除いた、確実にすぐ現金になるものだけで借金を返せるかを見る指標です。">当座比率</span>
                                 <span id="valRatioQuick" class="font-bold text-slate-800 text-sm">262.5%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="自己資本 ÷ 総資産">自己資本比率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【借金に頼っていないか？】全財産のうち、返す必要のない「自分のお金」の割合。高いほど倒産しにくい丈夫な会社です。">自己資本比率</span>
                                 <span id="valRatioEquity" class="font-bold text-slate-800 text-sm">60.0%</span>
                             </li>
                             <li class="flex justify-between items-center">
-                                <span class="text-slate-600" title="固定資産 ÷ 自己資本">固定比率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【設備投資の健全性】建物や機械を買うのに、自分のお金（自己資本）だけでまかなえているか。100%以下なら安全です。">固定比率</span>
                                 <span id="valRatioFixed" class="font-bold text-slate-800 text-sm">20.0%</span>
                             </li>
                         </ul>
                     </div>
-                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descSafety">
+                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 leading-relaxed" id="descSafety">
                         流動比率・自己資本比率ともに高水準です。
                     </div>
                 </div>
@@ -503,15 +543,15 @@
                         </div>
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600">売上高営業利益率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【本業で稼ぐ力】売上のうち、本業の儲け（営業利益）が何%残ったか。これがあまりにも低いと、売れば売るほど苦しくなります。">売上高営業利益率</span>
                                 <span id="valRatioOpMargin" class="font-bold text-slate-800 text-sm">14.0%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="当期純利益 ÷ 総資産">ROA (総資産利益率)</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【全財産の運用利回り】会社にあるすべての財産を使って、どれだけ効率よく利益を出したか。5%以上あれば優秀です。">ROA (総資産利益率)</span>
                                 <span id="valRatioROA" class="font-bold text-slate-800 text-sm">21.2%</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="当期純利益 ÷ 自己資本">ROE (自己資本利益率)</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【出資者の運用利回り】自分（株主）が用意したお金だけで、どれだけ効率よく利益を出したか。投資家が最も気にする数字です。">ROE (自己資本利益率)</span>
                                 <span id="valRatioROE" class="font-bold text-slate-800 text-sm">35.3%</span>
                             </li>
                             <li class="flex justify-between items-center">
@@ -520,7 +560,7 @@
                             </li>
                         </ul>
                     </div>
-                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descProfitability">
+                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 leading-relaxed" id="descProfitability">
                         高い営業利益率を維持しており強力です。
                     </div>
                 </div>
@@ -536,77 +576,218 @@
                         </div>
                         <ul class="space-y-3 text-xs">
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="売上高 ÷ 総資産（回）">総資産回転率</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【資産を使い倒しているか】持っている財産の何倍の売上を作ったか。回数が多いほど、少ない資金で商売を回せています。">総資産回転率</span>
                                 <span id="valRatioAssetTurnover" class="font-bold text-slate-800 text-sm">2.00回</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600" title="棚卸資産 ÷ (売上高/12)（ヶ月）">棚卸資産回転期間</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【在庫が売れるまでの期間】仕入れた商品が売れるまで平均何ヶ月かかっているか。長すぎる場合は不良在庫の危険があります。">棚卸資産回転期間</span>
                                 <span id="valRatioInvTurnover" class="font-bold text-slate-800 text-sm">0.24ヶ月</span>
                             </li>
                             <li class="flex justify-between items-center border-b border-slate-200 pb-1.5">
-                                <span class="text-slate-600">財務レバレッジ</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="【他人の力の活用度】借金（他人のお金）を使ってビジネスを何倍に膨らませているか。高すぎるとハイリスクになります。">財務レバレッジ</span>
                                 <span id="valRatioFinLeverage" class="font-bold text-slate-800 text-sm">1.67倍</span>
                             </li>
                             <li class="flex justify-between items-center">
-                                <span class="text-slate-600">デュポン分解(ROE)</span>
+                                <span class="text-slate-600 tooltip-trigger" data-tooltip="ROEを「利益率×回転率×レバレッジ」の3つに分解したもの。どこを改善すればROEが上がるかがわかります。">デュポン分解(ROE)</span>
                                 <span id="valRatioDupont" class="font-bold text-indigo-600 text-xs">10.6% × 2.0 × 1.67</span>
                             </li>
                         </ul>
                     </div>
-                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600" id="descEfficiency">
+                    <div class="mt-4 text-[11px] bg-white p-2.5 rounded-lg border border-slate-200 text-slate-600 leading-relaxed" id="descEfficiency">
                         総資産回転率は良好です。
                     </div>
                 </div>
 
             </div>
-        </div>
 
-        <!-- Financial Simulation Tool -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h3 class="font-bold text-slate-900 text-lg mb-2 flex items-center gap-2">
-                <i class="fa-solid fa-sliders text-indigo-600"></i>
-                経営改善・感度シミュレーション
-            </h3>
-            <p class="text-xs text-slate-500 mb-6">売上高の変動や原価率の改善が、営業利益およびROEにどのような変化を与えるか試算します。</p>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div class="space-y-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold mb-1">
-                            <label for="sliderRevenue" class="text-slate-700">売上高の変動: <span id="labelRevSim" class="text-indigo-600 font-bold">0%</span></label>
-                            <span class="text-slate-400">(-30% 〜 +30%)</span>
-                        </div>
-                        <input type="range" id="sliderRevenue" min="-30" max="30" value="0" step="1" oninput="runSimulation()" class="w-full accent-indigo-600 cursor-pointer">
+            <!-- ★ 新機能追加: 業界比較レーダーチャート ＆ 資金繰り診断パネル -->
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-slate-200 pt-6">
+                <!-- 業界比較レーダーチャート -->
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-radar-chart text-indigo-600"></i> 同業他社（業界平均）とのレーダー比較
+                        </h4>
+                        <select id="industrySelect" onchange="updateRadarChart()" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="retail">小売・流通業モデル</option>
+                            <option value="it">IT・SaaS業モデル</option>
+                            <option value="medical" selected>医療・福祉モデル</option>
+                            <option value="manufacturing">製造業モデル</option>
+                        </select>
                     </div>
-
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold mb-1">
-                            <label for="sliderCost" class="text-slate-700">原価率の改善/悪化: <span id="labelCostSim" class="text-indigo-600 font-bold">0%</span></label>
-                            <span class="text-slate-400">(-5% 〜 +5%)</span>
-                        </div>
-                        <input type="range" id="sliderCost" min="-5" max="5" value="0" step="0.5" oninput="runSimulation()" class="w-full accent-indigo-600 cursor-pointer">
+                    <div class="h-[250px] w-full relative">
+                        <canvas id="radarChart"></canvas>
                     </div>
-
-                    <button onclick="resetSimulation()" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-                        <i class="fa-solid fa-rotate-left"></i> シミュレーション値をリセット
-                    </button>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">※各指標を100点満点でスコア化し、業界目安と比較しています。</p>
                 </div>
 
-                <!-- Simulation Results Comparison Box -->
-                <div class="grid grid-cols-2 gap-4 text-center">
-                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl">
-                        <span class="text-xs font-semibold text-indigo-700 block mb-1">シミュレーション後の営業利益</span>
-                        <div id="simOperatingProfit" class="text-2xl font-bold text-indigo-900">¥70M</div>
-                        <span id="simOpDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
-                    </div>
+                <!-- 資金繰り・キャッシュフロー診断 -->
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-4 border-b border-slate-200 pb-2">
+                            <i class="fa-solid fa-sack-dollar text-rose-500"></i> 「利益と現金」のズレ・資金繰り診断
+                        </h4>
+                        
+                        <div class="space-y-4">
+                            <!-- 現預金月商比 -->
+                            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-bold text-slate-700">手元現金の余裕（現預金月商比）</span>
+                                    <span id="badgeCashFlow" class="text-[10px] px-2 py-0.5 rounded-full font-bold"></span>
+                                </div>
+                                <div class="flex items-baseline gap-2">
+                                    <span id="valCashMonths" class="text-2xl font-bold text-slate-800">2.5</span>
+                                    <span class="text-xs text-slate-500">ヶ月分（目安: 1.5ヶ月以上）</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                                    <div id="barCashMonths" class="bg-emerald-500 h-1.5 rounded-full transition-all" style="width: 50%"></div>
+                                </div>
+                            </div>
 
-                    <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
-                        <span class="text-xs font-semibold text-emerald-700 block mb-1">シミュレーション後のROE</span>
-                        <div id="simROE" class="text-2xl font-bold text-emerald-900">35.3%</div>
-                        <span id="simROEDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
+                            <!-- 在庫拘束資金 -->
+                            <div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-700 block tooltip-trigger" data-tooltip="倉庫に眠っていて、まだ現金化されていない資金の総額です。多すぎると資金繰りを圧迫します。">在庫による拘束資金</span>
+                                    <span class="text-[10px] text-slate-500">利益が現金になっていない原因</span>
+                                </div>
+                                <span id="valTiedUpInv" class="text-lg font-bold text-amber-600">¥10M</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="descCashFlow" class="mt-4 p-3 rounded-lg text-xs font-medium leading-relaxed bg-emerald-50 text-emerald-800 border border-emerald-200 flex gap-2 items-start">
+                        <i class="fa-solid fa-lightbulb mt-0.5"></i>
+                        <span>手元資金は十分に確保されており、資金ショートの危険性は低いです。</span>
                     </div>
                 </div>
             </div>
+            <!-- ★ 新機能追加ここまで -->
+
+        </div>
+
+        <!-- Financial Simulation Tool & Goal Seek -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <!-- 既存: 経営改善・感度シミュレーション -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-lg mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i>
+                        経営改善・感度シミュレーション
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-6">売上高の変動や原価率の改善が、営業利益およびROEにどのような変化を与えるか試算します。</p>
+
+                    <div class="space-y-6">
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-5">
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <label for="sliderRevenue" class="text-slate-700">売上高の変動: <span id="labelRevSim" class="text-indigo-600 font-bold">0%</span></label>
+                                    <span class="text-slate-400">(-30% 〜 +30%)</span>
+                                </div>
+                                <input type="range" id="sliderRevenue" min="-30" max="30" value="0" step="1" oninput="runSimulation()" class="w-full accent-indigo-600 cursor-pointer">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <label for="sliderCost" class="text-slate-700">原価率の改善/悪化: <span id="labelCostSim" class="text-indigo-600 font-bold">0%</span></label>
+                                    <span class="text-slate-400">(-5% 〜 +5%)</span>
+                                </div>
+                                <input type="range" id="sliderCost" min="-5" max="5" value="0" step="0.5" oninput="runSimulation()" class="w-full accent-indigo-600 cursor-pointer">
+                            </div>
+
+                            <div class="text-right">
+                                <button onclick="resetSimulation()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i> リセット
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Simulation Results Comparison Box -->
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl">
+                                <span class="text-xs font-semibold text-indigo-700 block mb-1">シミュレーション後の営業利益</span>
+                                <div id="simOperatingProfit" class="text-2xl font-bold text-indigo-900">¥70M</div>
+                                <span id="simOpDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
+                            </div>
+
+                            <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+                                <span class="text-xs font-semibold text-emerald-700 block mb-1">シミュレーション後のROE</span>
+                                <div id="simROE" class="text-2xl font-bold text-emerald-900">35.3%</div>
+                                <span id="simROEDiff" class="text-xs font-semibold text-slate-500">（変動なし）</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ★ 新機能追加: 目標必達ナビゲーター（ゴールシーク） -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye text-rose-600"></i>
+                            目標必達ナビゲーター (AI逆算)
+                        </h3>
+                        <span class="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded border border-rose-200">経営計画アシスト</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-4">「来期はこれだけ利益を出したい」という目標額を入力すると、それを達成するために必要な売上高やコスト削減額を自動逆算します。</p>
+
+                    <div class="bg-rose-50/50 p-5 rounded-xl border border-rose-200 mb-5">
+                        <label class="block text-sm font-bold text-rose-900 mb-2">達成したい目標「営業利益」を入力 (百万円)</label>
+                        <div class="flex gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-slate-500 sm:text-sm">¥</span>
+                                </div>
+                                <input type="number" id="inputTargetProfit" placeholder="例: 100" class="pl-8 w-full border border-rose-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none font-bold text-slate-800 text-lg">
+                            </div>
+                            <button onclick="calculateGoalSeek()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-sm whitespace-nowrap">
+                                逆算する
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-rose-600 mt-1.5"><i class="fa-solid fa-circle-info"></i> 現在の営業利益: <span id="gsCurrentProfit" class="font-bold">¥70M</span></p>
+                    </div>
+
+                    <!-- 逆算結果表示エリア -->
+                    <div id="gsResultArea" class="hidden space-y-4">
+                        <h4 class="text-xs font-bold text-slate-700 border-b pb-1">目標を達成するための2つのアプローチ</h4>
+                        
+                        <!-- アプローチ1: 売上でカバー -->
+                        <div class="bg-white border-2 border-indigo-100 rounded-lg p-4 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                            <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block mb-1">アプローチ 1 : 売上アップで達成する</span>
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <div class="text-xs text-slate-600 mb-0.5">必要な目標売上高</div>
+                                    <div class="text-xl font-bold text-slate-800" id="gsReqRev">¥0M</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">現在からの増加必要分</div>
+                                    <div class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded" id="gsRevDiff">+¥0M (+0%)</div>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-2">※現在の原価率・販管費額が変わらないと仮定した場合の数値です。</p>
+                        </div>
+
+                        <!-- アプローチ2: コスト削減でカバー -->
+                        <div class="bg-white border-2 border-emerald-100 rounded-lg p-4 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                            <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block mb-1">アプローチ 2 : コスト削減で達成する</span>
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <div class="text-xs text-slate-600 mb-0.5">必要なコスト削減額</div>
+                                    <div class="text-xl font-bold text-slate-800" id="gsReqCostRed">¥0M</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">現在の総コスト比</div>
+                                    <div class="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded" id="gsCostDiff">-0%</div>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-2">※売上高が現在のまま変動しないと仮定し、原価や販管費を見直す場合の目標額です。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ★ 新機能追加ここまで -->
         </div>
 
     </main>
@@ -910,6 +1091,17 @@
         </div>
     </div>
 
+    <!-- Success Toast Notification -->
+    <div id="toastNotification" class="fixed bottom-6 right-6 z-50 transform transition-all duration-500 translate-y-full opacity-0 flex items-center gap-3 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700">
+        <div class="bg-emerald-500 text-white rounded-full p-1.5 flex items-center justify-center">
+            <i class="fa-solid fa-check text-sm"></i>
+        </div>
+        <div>
+            <h4 class="font-bold text-sm">解析完了</h4>
+            <p id="toastMessage" class="text-xs text-slate-300">データを読み込み、図解グラフを更新しました。</p>
+        </div>
+    </div>
+
     <script>
         // PDF.js worker setup
         if (typeof pdfjsLib !== 'undefined') {
@@ -935,46 +1127,19 @@
         let uploadedPdfData = null;
         let plViewMode = 'block';
         let plChart = null;
+        let radarChartInstance = null; // ★追加: レーダーチャート用変数
 
-        // Sample Datasets (Updated to include previous period)
-        const samplePresets = {
-            kango: {
-                companyName: 'あおぞら訪問看護ステーション（医療・ヘルスケアモデル）',
-                currentPeriod: {
-                    bs: { cashEquiv: 210, inventory: 10, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
-                    pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 180, inventory: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
-                    pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
-                }
-            },
-            daikichi: {
-                companyName: '株式会社エンパワー / 買取大吉（リユース・買取専門店モデル）',
-                currentPeriod: {
-                    bs: { cashEquiv: 4200, inventory: 800, fixedAssets: 1000, currentLiabilities: 2000, fixedLiabilities: 800, equity: 3200 },
-                    pl: { revenue: 12000, costOfSales: 9000, sga: 1800, nonOpIncome: 100, extraordinary: 0, taxes: 390 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 3500, inventory: 950, fixedAssets: 1100, currentLiabilities: 2200, fixedLiabilities: 900, equity: 2450 },
-                    pl: { revenue: 10500, costOfSales: 8200, sga: 1700, nonOpIncome: 80, extraordinary: -50, taxes: 250 }
-                }
-            },
-            tech: {
-                companyName: 'テックイノベーションズ（SaaS・高収益モデル）',
-                currentPeriod: {
-                    bs: { cashEquiv: 6000, inventory: 200, fixedAssets: 1800, currentLiabilities: 1500, fixedLiabilities: 500, equity: 6000 },
-                    pl: { revenue: 10000, costOfSales: 2000, sga: 5500, nonOpIncome: 50, extraordinary: 0, taxes: 750 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 4500, inventory: 150, fixedAssets: 1200, currentLiabilities: 1800, fixedLiabilities: 600, equity: 3450 },
-                    pl: { revenue: 7000, costOfSales: 1600, sga: 4500, nonOpIncome: 20, extraordinary: 0, taxes: 270 }
-                }
-            }
+        // 業界平均ベンチマークデータ (スコア化用 100点満点換算の基準値)
+        const benchmarks = {
+            retail: { name: '小売・流通', current: 120, equity: 30, opMargin: 4, roe: 8, turnover: 2.0 },
+            it: { name: 'IT・SaaS', current: 180, equity: 60, opMargin: 15, roe: 15, turnover: 0.8 },
+            medical: { name: '医療・福祉', current: 150, equity: 40, opMargin: 8, roe: 10, turnover: 1.2 },
+            manufacturing: { name: '製造', current: 140, equity: 50, opMargin: 6, roe: 7, turnover: 1.0 }
         };
 
         window.onload = function() {
             initWaterfallChart();
+            initRadarChart(); // ★追加
             updateAllVisuals();
         };
 
@@ -1331,7 +1496,181 @@
             document.getElementById('valRatioFinLeverage').textContent = `${finLeverage.toFixed(2)}倍`;
             document.getElementById('valRatioDupont').textContent = `${netMargin.toFixed(1)}% × ${assetTurnover.toFixed(2)} × ${finLeverage.toFixed(2)}`;
 
+            // ★ 新機能更新呼び出し
+            updateCashFlowInsights(bs, pl, currentAssets, operatingProfit);
+            updateRadarChart();
+            // ゴールシークの現在利益表示を更新
+            document.getElementById('gsCurrentProfit').textContent = `¥${Math.round(operatingProfit).toLocaleString()}M`;
+
             runSimulation();
+        }
+
+        // ★ 新機能: 資金繰り・キャッシュフロー診断ロジック
+        function updateCashFlowInsights(bs, pl, currentAssets, operatingProfit) {
+            const monthlyRevenue = pl.revenue > 0 ? pl.revenue / 12 : 1;
+            const cashMonths = bs.cashEquiv / monthlyRevenue;
+            
+            document.getElementById('valCashMonths').textContent = cashMonths.toFixed(1);
+            document.getElementById('valTiedUpInv').textContent = `¥${Math.round(bs.inventory).toLocaleString()}M`;
+            
+            const badge = document.getElementById('badgeCashFlow');
+            const desc = document.getElementById('descCashFlow');
+            const bar = document.getElementById('barCashMonths');
+            
+            // プログレスバー（最大3ヶ月で100%とする）
+            bar.style.width = `${Math.min(100, (cashMonths / 3) * 100)}%`;
+
+            if (cashMonths >= 1.5) {
+                badge.textContent = "安全";
+                badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
+                bar.className = "bg-emerald-500 h-1.5 rounded-full transition-all";
+                desc.className = "mt-4 p-3 rounded-lg text-xs font-medium leading-relaxed bg-emerald-50 text-emerald-800 border border-emerald-200 flex gap-2 items-start";
+                desc.innerHTML = `<i class="fa-solid fa-circle-check mt-0.5"></i> <span>月商の1.5ヶ月分以上の現預金があり、資金繰りは安定しています。</span>`;
+            } else if (cashMonths >= 1.0) {
+                badge.textContent = "注意";
+                badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800";
+                bar.className = "bg-amber-500 h-1.5 rounded-full transition-all";
+                desc.className = "mt-4 p-3 rounded-lg text-xs font-medium leading-relaxed bg-amber-50 text-amber-800 border border-amber-200 flex gap-2 items-start";
+                desc.innerHTML = `<i class="fa-solid fa-triangle-exclamation mt-0.5"></i> <span>現預金が月商の1ヶ月分〜1.5ヶ月分です。突発的な支出に備え、資金確保を推奨します。</span>`;
+            } else {
+                badge.textContent = "危険";
+                badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800";
+                bar.className = "bg-rose-500 h-1.5 rounded-full transition-all";
+                desc.className = "mt-4 p-3 rounded-lg text-xs font-medium leading-relaxed bg-rose-50 text-rose-800 border border-rose-200 flex gap-2 items-start";
+                desc.innerHTML = `<i class="fa-solid fa-siren-on mt-0.5"></i> <span>手元資金が月商の1ヶ月分を切っています。売上回収の遅れや在庫増が即座に資金ショートに繋がる恐れがあります。</span>`;
+            }
+
+            if (bs.inventory > operatingProfit && operatingProfit > 0) {
+                desc.innerHTML += `<div class="mt-2 text-rose-700 border-t border-rose-200 pt-2"><i class="fa-solid fa-boxes-stacked mr-1"></i> <b>警告:</b> 営業利益以上の資金が在庫（¥${Math.round(bs.inventory)}M）に縛られています。「利益は出ているのに現金がない」状態の原因です。</div>`;
+            }
+        }
+
+        // ★ 新機能: レーダーチャート初期化
+        function initRadarChart() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['安全性(流動比率)', '安全性(自己資本)', '収益力(営業利益率)', '投資効率(ROE)', '資産効率(回転率)'],
+                    datasets: [
+                        {
+                            label: '自社スコア',
+                            data: [0, 0, 0, 0, 0],
+                            backgroundColor: 'rgba(79, 70, 229, 0.2)', // Indigo 600 transparent
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 2,
+                            order: 1
+                        },
+                        {
+                            label: '業界平均目安',
+                            data: [50, 50, 50, 50, 50],
+                            backgroundColor: 'rgba(148, 163, 184, 0.1)', // Slate 400 transparent
+                            borderColor: 'rgba(148, 163, 184, 0.5)',
+                            borderDash: [5, 5],
+                            borderWidth: 1.5,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: { 
+                            angleLines: { color: '#e2e8f0' },
+                            grid: { color: '#e2e8f0' },
+                            pointLabels: { font: { size: 10, family: 'Noto Sans JP' }, color: '#475569' },
+                            ticks: { display: false, min: 0, max: 100, stepSize: 25 }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw)}点` } }
+                    }
+                }
+            });
+        }
+
+        // ★ 新機能: レーダーチャート更新（スコア化計算）
+        function updateRadarChart() {
+            if (!radarChartInstance) return;
+
+            const bs = appState.currentPeriod.bs;
+            const pl = appState.currentPeriod.pl;
+            const currentAssets = bs.cashEquiv + bs.inventory;
+            const totalAssets = currentAssets + bs.fixedAssets;
+            const netProfit = pl.revenue - pl.costOfSales - pl.sga + pl.nonOpIncome + pl.extraordinary - pl.taxes;
+            
+            const currentRatio = bs.currentLiabilities > 0 ? (currentAssets / bs.currentLiabilities) * 100 : 0;
+            const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
+            const opMargin = pl.revenue > 0 ? ((pl.revenue - pl.costOfSales - pl.sga) / pl.revenue) * 100 : 0;
+            const roe = bs.equity > 0 ? (netProfit / bs.equity) * 100 : 0;
+            const turnover = totalAssets > 0 ? (pl.revenue / totalAssets) : 0;
+
+            const indKey = document.getElementById('industrySelect').value;
+            const b = benchmarks[indKey];
+
+            // 業界平均を50点とした場合の相対スコア化 (Max 100)
+            const calcScore = (val, benchmark) => Math.min(100, Math.max(0, (val / benchmark) * 50));
+            
+            const scores = [
+                calcScore(currentRatio, b.current),
+                calcScore(equityRatio, b.equity),
+                calcScore(opMargin, b.opMargin),
+                calcScore(roe, b.roe),
+                calcScore(turnover, b.turnover)
+            ];
+
+            radarChartInstance.data.datasets[0].data = scores;
+            radarChartInstance.data.datasets[1].label = b.name + ' 平均';
+            radarChartInstance.update();
+        }
+
+        // ★ 新機能: 目標必達ナビゲーター（ゴールシーク逆算）
+        function calculateGoalSeek() {
+            const inputVal = document.getElementById('inputTargetProfit').value;
+            if (!inputVal || isNaN(inputVal)) {
+                alert("数値を正しく入力してください");
+                return;
+            }
+            
+            const targetProfit = parseFloat(inputVal);
+            const pl = appState.currentPeriod.pl;
+            const currentRev = pl.revenue || 1;
+            const currentOpProfit = currentRev - pl.costOfSales - pl.sga;
+            
+            if (targetProfit <= currentOpProfit) {
+                alert(`入力された目標（¥${targetProfit}M）は、現在の営業利益（¥${Math.round(currentOpProfit)}M）以下です。より高い目標を設定してください。`);
+                return;
+            }
+
+            // 限界利益率の計算 (1 - 変動費率) ※ここでは売上原価を変動費、販管費を固定費と仮定
+            const vCostRatio = pl.costOfSales / currentRev; 
+            const cmRatio = 1 - vCostRatio;
+            const fixedCost = pl.sga;
+
+            // アプローチ1: 必要な売上高 = (固定費 + 目標利益) / 限界利益率
+            let reqRev = 0;
+            if (cmRatio > 0) {
+                reqRev = (fixedCost + targetProfit) / cmRatio;
+            }
+            const revDiff = reqRev - currentRev;
+            const revDiffPct = (revDiff / currentRev) * 100;
+
+            // アプローチ2: 必要なコスト削減額 = 目標利益 - 現在の営業利益
+            const reqCostRed = targetProfit - currentOpProfit;
+            const totalCurrentCost = pl.costOfSales + pl.sga;
+            const costDiffPct = (reqCostRed / totalCurrentCost) * 100;
+
+            // 結果の描画
+            document.getElementById('gsResultArea').classList.remove('hidden');
+            
+            document.getElementById('gsReqRev').textContent = `¥${Math.round(reqRev).toLocaleString()}M`;
+            document.getElementById('gsRevDiff').textContent = `+¥${Math.round(revDiff).toLocaleString()}M (+${revDiffPct.toFixed(1)}%)`;
+            
+            document.getElementById('gsReqCostRed').textContent = `¥${Math.round(reqCostRed).toLocaleString()}M削減`;
+            document.getElementById('gsCostDiff').textContent = `現在の総コストから -${costDiffPct.toFixed(1)}%`;
         }
 
         function populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit) {
@@ -1556,6 +1895,9 @@
             
             // Open raw data drawer to verify
             document.getElementById('rawDataDrawer').classList.remove('hidden');
+            
+            showToast("手動入力が完了し、グラフと分析ダッシュボードを更新しました。");
+            scrollToVisuals();
         }
 
         async function handlePdfUpload(event) {
@@ -1606,6 +1948,11 @@
                 document.getElementById('rawDataDrawer').classList.remove('hidden');
                 resetSimulation();
                 updateAllVisuals();
+                
+                // Show completion feedback
+                showToast(`「${file.name}」の解析が完了し、図解されました！`);
+                setTimeout(closePdfStatus, 3000); // Auto close status bar
+                scrollToVisuals();
 
             } catch (err) {
                 console.error(err);
@@ -1699,6 +2046,9 @@
             resetSimulation();
             updateAllVisuals();
             document.getElementById('rawDataDrawer').classList.remove('hidden');
+            
+            showToast("テキストの解析が完了し、図解されました！");
+            scrollToVisuals();
         }
 
         function closePdfStatus() {
@@ -1809,6 +2159,29 @@
             } else {
                 window.print();
             }
+        }
+        
+        // Helper function to show Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-full', 'opacity-0');
+            
+            // Hide after 4 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+            }, 4000);
+        }
+
+        // Helper function to smooth scroll to visual section
+        function scrollToVisuals() {
+            setTimeout(() => {
+                const element = document.getElementById('bsDiagramContainer');
+                if(element) {
+                    const y = element.getBoundingClientRect().top + window.scrollY - 100; // Offset for header
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                }
+            }, 300);
         }
     </script>
 </body>
