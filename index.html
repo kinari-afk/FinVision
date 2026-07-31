@@ -93,6 +93,15 @@
             pointer-events: none;
             z-index: 9999;
         }
+        .report-page-break {
+            break-before: page;
+            page-break-before: always;
+            padding-top: 2px;
+        }
+        .report-avoid-break {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 min-h-screen flex flex-col">
@@ -120,15 +129,13 @@
     <!-- Main Content Area -->
     <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 w-full">
 
-        <!-- Controls: Samples, Input, Views -->
+        <!-- Controls: Saved data, Input, Views -->
         <div class="bg-white p-3 rounded-xl border border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shadow-sm">
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-database"></i> データ:</span>
-                <button onclick="loadSampleData('tech')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">IT/SaaS</button>
-                <button onclick="loadSampleData('kango')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">訪問看護</button>
-                <button onclick="loadSampleData('reuse')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md font-medium transition">リユース買取</button>
-                <button id="btnLoadedCustomData" onclick="loadCustomData()" class="hidden px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs rounded-md font-bold transition ml-1 shadow-sm">
-                    <i class="fa-solid fa-rotate-left"></i> 自社データに復帰
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-box-archive"></i> 保存データ:</span>
+                <div id="memorySlots" class="flex flex-wrap items-center gap-1.5"></div>
+                <button onclick="saveCurrentToMemory()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-md font-bold transition shadow-sm whitespace-nowrap">
+                    <i class="fa-solid fa-floppy-disk"></i> 現在データを保存
                 </button>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -286,36 +293,36 @@
                         </div>
                     </div>
                     
-                    <div id="bsDiagramContainer" class="grid gap-3 h-[420px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all grid-cols-1">
+                    <div id="bsDiagramContainer" class="grid gap-3 h-[420px] bg-slate-100 p-3 rounded-xl border border-slate-200 text-xs transition-all grid-cols-1 items-stretch overflow-hidden">
                         
                         <!-- PREV PERIOD (Hidden in single mode) -->
-                        <div id="bsPrevPeriod" class="hidden grid grid-cols-2 gap-2 h-full opacity-60 hover:opacity-100 transition-opacity">
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="prevBoxCurrentAssets" class="bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                        <div id="bsPrevPeriod" class="hidden grid grid-cols-2 gap-2 h-full min-h-0 min-w-0 overflow-hidden opacity-60 hover:opacity-100 transition-opacity">
+                            <div class="flex flex-col h-full min-h-0 min-w-0 gap-1 overflow-hidden">
+                                <div id="prevBoxCurrentAssets" class="bg-sky-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="prevValCurrentAssets">¥0M</span></div>
                                 </div>
-                                <div id="prevBoxFixedAssets" class="bg-indigo-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="prevBoxFixedAssets" class="bg-indigo-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【固定資産】建物や機械、土地など、事業のために長く使う財産。すぐには現金化できません。">固定資産</span><span id="prevValFixedAssets">¥0M</span></div>
                                 </div>
                             </div>
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="prevBoxCurrentLiabilities" class="bg-amber-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                            <div class="flex flex-col h-full min-h-0 min-w-0 gap-1 overflow-hidden">
+                                <div id="prevBoxCurrentLiabilities" class="bg-amber-600/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【流動負債】1年以内に返さなければならない借金や支払い義務。すぐに出ていくお金です。">流動負債</span><span id="prevValCurrentLiabilities">¥0M</span></div>
                                 </div>
-                                <div id="prevBoxFixedLiabilities" class="bg-orange-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="prevBoxFixedLiabilities" class="bg-orange-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【固定負債】1年を超えてゆっくり返せばよい借金。長期借入金など。">固定負債</span><span id="prevValFixedLiabilities">¥0M</span></div>
                                 </div>
-                                <div id="prevBoxEquity" class="bg-emerald-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="prevBoxEquity" class="bg-emerald-700/80 text-white rounded p-1.5 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center text-[10px]"><span class="tooltip-trigger" data-tooltip="【純資産】返す必要のない、会社自身の本当の財産（自己資本）。過去に稼いだ利益の蓄積もここに入ります。">純資産</span><span id="prevValEquity">¥0M</span></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- CURR PERIOD -->
-                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-2 h-full">
+                        <div id="bsCurrPeriod" class="grid grid-cols-2 gap-2 h-full min-h-0 min-w-0 overflow-hidden">
                             <!-- Assets -->
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="boxCurrentAssets" class="bg-sky-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] relative">
+                            <div class="flex flex-col h-full min-h-0 min-w-0 gap-1 overflow-hidden">
+                                <div id="boxCurrentAssets" class="bg-sky-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] relative overflow-hidden">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【流動資産】1年以内に現金化できる、または現金そのものの資産。会社を回すための重要な資金です。">流動資産</span><span id="valCurrentAssets">¥0M</span></div>
                                     <div class="text-[10px] text-sky-200 mt-1 space-y-0.5 hidden sm:block">
                                         <div class="flex justify-between"><span class="tooltip-trigger" data-tooltip="【当座資産】現預金・売掛金など、在庫を除いた確実にすぐ現金になる資産です。">当座資産</span><span id="valCashEquiv">¥0M</span></div>
@@ -324,22 +331,22 @@
                                     </div>
                                     <span class="text-[10px] text-sky-100 self-end font-semibold mt-auto" id="pctCurrentAssets">0%</span>
                                 </div>
-                                <div id="boxFixedAssets" class="bg-indigo-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="boxFixedAssets" class="bg-indigo-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【固定資産】建物や機械、ソフトウェアなど、事業のために長く使う財産。すぐには現金化できません。">固定資産</span><span id="valFixedAssets">¥0M</span></div>
                                     <span class="text-[10px] text-indigo-200 self-end font-semibold mt-auto" id="pctFixedAssets">0%</span>
                                 </div>
                             </div>
                             <!-- Liab & Eq -->
-                            <div class="flex flex-col h-full gap-1">
-                                <div id="boxCurrentLiabilities" class="bg-amber-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                            <div class="flex flex-col h-full min-h-0 min-w-0 gap-1 overflow-hidden">
+                                <div id="boxCurrentLiabilities" class="bg-amber-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【流動負債】1年以内に返さなければならない借金や支払い義務。すぐに出ていくお金です。">流動負債</span><span id="valCurrentLiabilities">¥0M</span></div>
                                     <span class="text-[10px] text-amber-200 self-end font-semibold mt-auto" id="pctCurrentLiabilities">0%</span>
                                 </div>
-                                <div id="boxFixedLiabilities" class="bg-orange-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="boxFixedLiabilities" class="bg-orange-700 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【固定負債】1年を超えてゆっくり返せばよい借金。長期借入金など。">固定負債</span><span id="valFixedLiabilities">¥0M</span></div>
                                     <span class="text-[10px] text-orange-200 self-end font-semibold mt-auto" id="pctFixedLiabilities">0%</span>
                                 </div>
-                                <div id="boxEquity" class="bg-emerald-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%]">
+                                <div id="boxEquity" class="bg-emerald-600 text-white rounded p-2 flex flex-col justify-between shadow-sm min-h-[5%] overflow-hidden">
                                     <div class="font-bold flex justify-between items-center"><span class="tooltip-trigger" data-tooltip="【純資産】返す必要のない、会社自身の本当の財産（自己資本）。過去に稼いだ利益の蓄積もここに入ります。">純資産</span><span id="valEquity">¥0M</span></div>
                                     <span class="text-[10px] text-emerald-200 self-end font-semibold mt-auto" id="pctEquity">0%</span>
                                 </div>
@@ -552,7 +559,7 @@
                         <canvas id="radarChart"></canvas>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-2 text-center">
-                        ※各指標を100点満点でスコア化。訪問看護・訪問介護の収益性目安は
+                        ※<strong class="text-indigo-700">自社の実績値を選択業界の平均値と比較</strong>し、業界平均を50点として100点満点でスコア化。訪問看護・訪問介護の収益性目安は
                         <a href="https://www.mhlw.go.jp/toukei/list/dl/153-1/r07_gaikyoukekka.pdf" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">厚生労働省「令和7年度介護事業経営概況調査」</a>
                         の令和6年度決算を参考にしています。
                     </p>
@@ -947,10 +954,7 @@
                 <textarea id="pasteTextInput" rows="8" placeholder="ここに決算書テキストを貼り付けてください（例: 売上高 500,000千円 売上原価 320,000千円 資産合計 250,000千円 ...）" class="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
             </div>
 
-            <div class="flex justify-between items-center pt-2">
-                <button onclick="fillSampleTextForPaste()" class="text-xs text-indigo-600 hover:underline">
-                    <i class="fa-solid fa-lightbulb"></i> テキスト例を試す
-                </button>
+            <div class="flex justify-end items-center pt-2">
                 <div class="flex gap-2">
                     <button type="button" onclick="togglePasteModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium">閉じる</button>
                     <button type="button" onclick="parsePastedText()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-md">
@@ -1060,7 +1064,7 @@
                 <div class="border-b-2 border-indigo-900 pb-4 flex justify-between items-end">
                     <div>
                         <div class="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-1">FinVision Financial Analysis Report</div>
-                        <h1 id="pdfReportCompanyName" class="text-2xl font-extrabold text-slate-900">サンプル株式会社</h1>
+                        <h1 id="pdfReportCompanyName" class="text-2xl font-extrabold text-slate-900">対象企業</h1>
                         <p class="text-xs text-slate-500 mt-1">作成日時: <span id="pdfReportDate">2026/07/30</span> | 単位: 百万円</p>
                     </div>
                     <div class="text-right">
@@ -1170,6 +1174,47 @@
                 <div class="text-right text-[10px] text-slate-400 pt-2 border-t border-slate-200">
                     FinVision Financial Visual Analyzer | Auto Generated Analysis Report
                 </div>
+
+                <!-- Page 2: Visual structures and radar -->
+                <div id="pdfPage2" class="report-page-break space-y-4 text-slate-800">
+                    <div class="border-b-2 border-indigo-900 pb-3 flex justify-between items-end">
+                        <div>
+                            <div class="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-1">FinVision Financial Analysis Report</div>
+                            <h2 class="text-lg font-extrabold text-slate-900">3. 財務構造・業界比較</h2>
+                        </div>
+                        <div id="pdfPage2CompanyName" class="text-xs font-bold text-slate-600"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 report-avoid-break">
+                        <section class="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                            <h3 class="font-bold text-xs text-slate-900 mb-2 border-l-4 border-sky-600 pl-2">貸借対照表（B/S）構造図</h3>
+                            <div id="pdfBsStructure" class="h-[220px]"></div>
+                        </section>
+                        <section class="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                            <h3 class="font-bold text-xs text-slate-900 mb-2 border-l-4 border-indigo-600 pl-2">損益計算書（P/L）ブロック図</h3>
+                            <div id="pdfPlBlockStructure" class="h-[220px]"></div>
+                        </section>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 report-avoid-break">
+                        <section class="border border-slate-200 rounded-lg p-3 bg-white">
+                            <h3 class="font-bold text-xs text-slate-900 mb-2 border-l-4 border-amber-500 pl-2">損益計算書（P/L）階段図</h3>
+                            <div id="pdfPlWaterfallStructure" class="h-[220px]"></div>
+                        </section>
+                        <section class="border border-slate-200 rounded-lg p-3 bg-white">
+                            <h3 class="font-bold text-xs text-slate-900 mb-1 border-l-4 border-violet-600 pl-2">自社・業界平均レーダー</h3>
+                            <p id="pdfRadarCaption" class="text-[9px] text-slate-500 mb-1">業界平均を50点として比較</p>
+                            <div class="h-[198px] flex items-center justify-center">
+                                <img id="pdfRadarImage" alt="自社と業界平均のレーダーチャート" class="max-w-full max-h-full object-contain">
+                                <p id="pdfRadarFallback" class="hidden text-[10px] text-slate-500">レーダーチャートを作成できませんでした。</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="text-right text-[10px] text-slate-400 pt-2 border-t border-slate-200">
+                        FinVision Financial Visual Analyzer | Page 2
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1231,58 +1276,14 @@
         // Global State Object (Supports multiple periods)
         let appState = {
             viewMode: 'single', // 'single' or 'compare'
-            companyName: 'サンプル訪問看護ステーション（医療・ヘルスケアモデル）',
-            currentPeriod: {
-                bs: { cashEquiv: 210, cash: 200, inventory: 10, otherCurrentAssets: 0, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 150 },
-                pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
-            },
-            previousPeriod: {
-                // Initialize with some slightly worse data for comparison demo
-                bs: { cashEquiv: 180, cash: 170, inventory: 15, otherCurrentAssets: 0, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 115 },
-                pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
-            },
+            companyName: '',
+            currentPeriod: { bs: emptyBs(), pl: emptyPl() },
+            previousPeriod: { bs: emptyBs(), pl: emptyPl() },
             // PDF読込時に抽出できた販管費内訳（[{name, value(百万円)}, ...]）
             sgaDetail: null,
             periodLabel: null,
             // 数値調整画面では、PDFに記載された元の単位で初期表示する
             manualInputUnits: { current: 1, previous: 1 }
-        };
-
-        // サンプル用プリセットデータ
-        const samplePresets = {
-            kango: {
-                companyName: 'サンプル訪問看護ステーション',
-                currentPeriod: {
-                    bs: { cashEquiv: 190, cash: 190, inventory: 0, otherCurrentAssets: 20, fixedAssets: 30, currentLiabilities: 80, fixedLiabilities: 20, equity: 140 },
-                    pl: { revenue: 500, costOfSales: 320, sga: 110, nonOpIncome: 5, extraordinary: 0, taxes: 22 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 165, cash: 165, inventory: 0, otherCurrentAssets: 15, fixedAssets: 35, currentLiabilities: 90, fixedLiabilities: 25, equity: 100 },
-                    pl: { revenue: 450, costOfSales: 300, sga: 105, nonOpIncome: 2, extraordinary: 0, taxes: 15 }
-                }
-            },
-            reuse: {
-                companyName: 'サンプルリユース株式会社（買取モデル）',
-                currentPeriod: {
-                    bs: { cashEquiv: 300, cash: 280, inventory: 150, otherCurrentAssets: 0, fixedAssets: 50, currentLiabilities: 120, fixedLiabilities: 80, equity: 300 },
-                    pl: { revenue: 1200, costOfSales: 600, sga: 400, nonOpIncome: 10, extraordinary: -5, taxes: 60 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 250, cash: 230, inventory: 120, otherCurrentAssets: 0, fixedAssets: 60, currentLiabilities: 150, fixedLiabilities: 90, equity: 190 },
-                    pl: { revenue: 1000, costOfSales: 520, sga: 350, nonOpIncome: 5, extraordinary: 0, taxes: 40 }
-                }
-            },
-            tech: {
-                companyName: 'サンプルクラウドSaaS株式会社（ITモデル）',
-                currentPeriod: {
-                    bs: { cashEquiv: 500, cash: 450, inventory: 0, otherCurrentAssets: 0, fixedAssets: 200, currentLiabilities: 150, fixedLiabilities: 50, equity: 500 },
-                    pl: { revenue: 800, costOfSales: 200, sga: 450, nonOpIncome: 0, extraordinary: 0, taxes: 45 }
-                },
-                previousPeriod: {
-                    bs: { cashEquiv: 400, cash: 360, inventory: 0, otherCurrentAssets: 0, fixedAssets: 150, currentLiabilities: 120, fixedLiabilities: 60, equity: 370 },
-                    pl: { revenue: 600, costOfSales: 150, sga: 350, nonOpIncome: 0, extraordinary: 0, taxes: 30 }
-                }
-            }
         };
 
         // Cache last custom extracted/input data
@@ -1312,6 +1313,74 @@
             reuse: { name: 'リユース業(買取)', current: 180, equity: 45, opMargin: 12, roe: 15, turnover: 2.5 } // 粗利率が高く、在庫回転が早い
         };
 
+        /** 最大3件の保存データを安全に扱う純粋関数 */
+        const DataMemory = (() => {
+            const MAX_SLOTS = 3;
+            const clone = value => JSON.parse(JSON.stringify(value));
+
+            function normalizeSlots(slots) {
+                if (!Array.isArray(slots)) return [];
+                return slots
+                    .filter(slot => slot && slot.id && slot.state)
+                    .slice(0, MAX_SLOTS)
+                    .map(slot => clone(slot));
+            }
+
+            function add(slots, state, label, savedAt = new Date().toISOString()) {
+                const normalized = normalizeSlots(slots);
+                if (normalized.length >= MAX_SLOTS) return { ok: false, reason: 'full', slots: normalized };
+                const safeLabel = String(label || (state && state.companyName) || `保存データ ${normalized.length + 1}`).trim();
+                const id = `${savedAt}-${normalized.length + 1}`;
+                return {
+                    ok: true,
+                    slots: [...normalized, { id, label: safeLabel || `保存データ ${normalized.length + 1}`, savedAt, state: clone(state) }]
+                };
+            }
+
+            function remove(slots, id) {
+                return normalizeSlots(slots).filter(slot => slot.id !== id);
+            }
+
+            function stateAt(slots, id) {
+                const slot = normalizeSlots(slots).find(item => item.id === id);
+                return slot ? clone(slot.state) : null;
+            }
+
+            function parse(serialized) {
+                if (!serialized) return [];
+                try { return normalizeSlots(JSON.parse(serialized)); }
+                catch (_error) { return []; }
+            }
+
+            return { MAX_SLOTS, add, remove, stateAt, parse, normalizeSlots };
+        })();
+
+        /** 自社実績と業界平均を別データ系列としてスコア化する純粋関数 */
+        const RadarScoring = (() => {
+            const industryScores = () => [50, 50, 50, 50, 50];
+            function calcScore(value, benchmark) {
+                const actual = Number(value);
+                const base = Number(benchmark);
+                if (!Number.isFinite(actual) || !Number.isFinite(base) || base <= 0) return 0;
+                return Math.min(100, Math.max(0, (actual / base) * 50));
+            }
+            function compare(metrics, benchmark) {
+                return {
+                    company: [
+                        calcScore(metrics.currentRatio, benchmark.current),
+                        calcScore(metrics.equityRatio, benchmark.equity),
+                        calcScore(metrics.opMargin, benchmark.opMargin),
+                        calcScore(metrics.roe, benchmark.roe),
+                        calcScore(metrics.turnover, benchmark.turnover)
+                    ],
+                    industry: industryScores()
+                };
+            }
+            return { calcScore, compare, industryScores };
+        })();
+
+        const MEMORY_STORAGE_KEY = 'finvision.saved-data.v1';
+
         window.onload = function() {
             // CDN（Chart.js / PDF.js）が社内ネットワーク等でブロックされても、
             // 数表と診断結果は必ず表示されるよう、初期化を個別に保護する。
@@ -1322,6 +1391,7 @@
             try { if (typeof Chart !== 'undefined') { initWaterfallChart(); initRadarChart(); } }
             catch (e) { console.error('チャート初期化に失敗しました', e); }
             try { initPdfDropZone(); } catch (e) { console.error('ドロップゾーン初期化に失敗しました', e); }
+            try { renderMemorySlots(); } catch (e) { console.error('保存データ表示に失敗しました', e); }
             try { updateAllVisuals(); } catch (e) { console.error('画面更新に失敗しました', e); }
 
             if (missing.length) {
@@ -1409,30 +1479,112 @@
             if (plChart) plChart.update();
         }
 
-        // Load Preset
-        function loadSampleData(key) {
-            if (samplePresets[key]) {
-                appState = { ...appState, ...JSON.parse(JSON.stringify(samplePresets[key])) };
-                resetSimulation();
-                updateAllVisuals();
+        function readMemorySlots() {
+            try { return DataMemory.parse(localStorage.getItem(MEMORY_STORAGE_KEY)); }
+            catch (_error) { return []; }
+        }
+
+        function writeMemorySlots(slots) {
+            try {
+                localStorage.setItem(MEMORY_STORAGE_KEY, JSON.stringify(DataMemory.normalizeSlots(slots)));
+                return true;
+            } catch (_error) {
+                showToast('ブラウザ保存を利用できません。プライベートモード等の設定をご確認ください。');
+                return false;
             }
         }
 
-        // ユーザーが入力・読み込んだ自社データに復帰する
-        function loadCustomData() {
-            if (customDataCache) {
-                appState = JSON.parse(JSON.stringify(customDataCache));
-                resetSimulation();
-                updateAllVisuals();
-                showToast("自社データに復帰しました。");
+        function renderMemorySlots() {
+            const container = document.getElementById('memorySlots');
+            if (!container) return;
+            const slots = readMemorySlots();
+            container.replaceChildren();
+
+            for (let index = 0; index < DataMemory.MAX_SLOTS; index += 1) {
+                const slot = slots[index];
+                if (!slot) {
+                    const empty = document.createElement('span');
+                    empty.className = 'px-2.5 py-1.5 text-[10px] text-slate-400 bg-slate-50 border border-dashed border-slate-300 rounded-md whitespace-nowrap';
+                    empty.textContent = `空き枠 ${index + 1}`;
+                    container.appendChild(empty);
+                    continue;
+                }
+
+                const group = document.createElement('span');
+                group.className = 'inline-flex items-stretch rounded-md border border-indigo-200 overflow-hidden bg-indigo-50 shadow-sm';
+
+                const loadButton = document.createElement('button');
+                loadButton.type = 'button';
+                loadButton.className = 'px-2.5 py-1 text-left hover:bg-indigo-100 transition max-w-[150px]';
+                loadButton.title = `${slot.label} を呼び出す`;
+                loadButton.onclick = () => loadMemorySlot(slot.id);
+                const name = document.createElement('span');
+                name.className = 'block text-[10px] font-bold text-indigo-800 truncate';
+                name.textContent = slot.label;
+                const date = document.createElement('span');
+                date.className = 'block text-[8px] text-indigo-500';
+                const savedDate = new Date(slot.savedAt);
+                date.textContent = Number.isNaN(savedDate.getTime()) ? '保存済み' : savedDate.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                loadButton.append(name, date);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.className = 'px-2 text-indigo-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition';
+                deleteButton.title = `${slot.label} を削除`;
+                deleteButton.setAttribute('aria-label', `${slot.label} を削除`);
+                deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                deleteButton.onclick = () => deleteMemorySlot(slot.id);
+
+                group.append(loadButton, deleteButton);
+                container.appendChild(group);
             }
         }
 
-        // 入力・読み込み時にカスタムデータを記憶し、復帰ボタンを表示する
+        function saveCurrentToMemory() {
+            const slots = readMemorySlots();
+            if (slots.length >= DataMemory.MAX_SLOTS) {
+                showToast('保存は3件までです。不要な保存データを削除してから保存してください。');
+                return;
+            }
+            const defaultLabel = appState.companyName || appState.periodLabel || `保存データ ${slots.length + 1}`;
+            const result = DataMemory.add(slots, appState, defaultLabel, new Date().toISOString());
+            if (!result.ok || !writeMemorySlots(result.slots)) return;
+            renderMemorySlots();
+            showToast(`「${defaultLabel}」をブラウザに保存しました。`);
+        }
+
+        function loadMemorySlot(id) {
+            const restored = DataMemory.stateAt(readMemorySlots(), id);
+            if (!restored) {
+                showToast('保存データを読み込めませんでした。');
+                return;
+            }
+            appState = {
+                ...restored,
+                viewMode: restored.viewMode === 'compare' ? 'compare' : 'single',
+                currentPeriod: normalizePeriod(restored.currentPeriod),
+                previousPeriod: normalizePeriod(restored.previousPeriod),
+                manualInputUnits: { current: 1, previous: 1, ...(restored.manualInputUnits || {}) }
+            };
+            customDataCache = JSON.parse(JSON.stringify(appState));
+            latestImportedDataCache = JSON.parse(JSON.stringify(appState));
+            resetSimulation();
+            switchGlobalView(appState.viewMode);
+            showToast(`「${appState.companyName || '保存データ'}」を呼び出しました。`);
+        }
+
+        function deleteMemorySlot(id) {
+            const slots = readMemorySlots();
+            const target = slots.find(slot => slot.id === id);
+            if (!target || !window.confirm(`「${target.label}」を保存一覧から削除しますか？`)) return;
+            if (!writeMemorySlots(DataMemory.remove(slots, id))) return;
+            renderMemorySlots();
+            showToast(`「${target.label}」を削除しました。`);
+        }
+
+        // 入力・読み込み直後のデータを画面内でも保持する
         function saveCustomDataCache() {
             customDataCache = JSON.parse(JSON.stringify(appState));
-            const btn = document.getElementById('btnLoadedCustomData');
-            if (btn) btn.classList.remove('hidden');
         }
 
         /** PDF読取値と数値調整画面の単位・表示値を相互変換する純粋関数 */
@@ -1599,27 +1751,6 @@
             document.getElementById('pasteModal').classList.toggle('hidden');
         }
 
-        function fillSampleTextForPaste() {
-            const sampleText = `決算報告書（自 令和5年4月1日 至 令和6年3月31日）
-単位：千円
-【 貸借対照表 】
-現金及び預金: 1,500,000
-棚卸資産: 300,000
-固定資産合計: 800,000
-資産合計: 2,600,000
-流動負債合計: 600,000
-固定負債合計: 400,000
-純資産合計: 1,600,000
-
-【 損益計算書 】
-売上高: 4,500,000
-売上原価: 2,700,000
-販売費及び一般管理費: 1,100,000
-営業利益: 700,000
-法人税、住民税及び事業税: 210,000`;
-            document.getElementById('pasteTextInput').value = sampleText;
-        }
-
         // Core Financial Calculator & Visual Render
         function updateAllVisuals() {
             // 旧形式データや部分的な入力でも壊れないよう、毎回フィールドを補完しておく
@@ -1718,18 +1849,13 @@
             setFlex('boxFixedLiabilities', pctFL);
             setFlex('boxEquity', pctEq);
 
-            // --- B/S Visual Diagram (Previous - scaled relative to current assets if in compare mode) ---
+            // --- B/S Visual Diagram (Previous) ---
             if (appState.viewMode === 'compare') {
-                const maxAssets = Math.max(totalAssets, pTotalAssets, 1);
-                // Scale height based on total size relative to the largest period
-                const pScale = pTotalAssets / maxAssets;
-                const cScale = totalAssets / maxAssets;
-                
-                // Adjust container heights for visual scaling
-                document.getElementById('bsPrevPeriod').style.height = `${pScale * 100}%`;
-                document.getElementById('bsCurrPeriod').style.height = `${cScale * 100}%`;
-                // Align them to bottom
-                document.getElementById('bsDiagramContainer').classList.add('items-end');
+                // 期間ごとの総額差でコンテナ自体を縮めると、小さい期の最小ブロックが
+                // 親枠を突き抜ける。両期を同じ高さに固定し、各期内の構成比だけを比較する。
+                document.getElementById('bsPrevPeriod').style.height = '100%';
+                document.getElementById('bsCurrPeriod').style.height = '100%';
+                document.getElementById('bsDiagramContainer').classList.remove('items-end');
 
                 const pPctCA = pTotalAssets > 0 ? (pCurrentAssets / pTotalAssets) * 100 : 0;
                 const pPctFA = pTotalAssets > 0 ? (pBs.fixedAssets / pTotalAssets) * 100 : 0;
@@ -1749,8 +1875,8 @@
                 setFlex('prevBoxFixedLiabilities', pPctFL);
                 setFlex('prevBoxEquity', pPctEq);
             } else {
-                document.getElementById('bsPrevPeriod').style.height = `100%`;
-                document.getElementById('bsCurrPeriod').style.height = `100%`;
+                document.getElementById('bsPrevPeriod').style.height = '100%';
+                document.getElementById('bsCurrPeriod').style.height = '100%';
                 document.getElementById('bsDiagramContainer').classList.remove('items-end');
             }
 
@@ -2064,18 +2190,11 @@
             const indKey = document.getElementById('industrySelect').value;
             const b = benchmarks[indKey];
 
-            // 業界平均を50点とした場合の相対スコア化 (Max 100)
-            const calcScore = (val, benchmark) => Math.min(100, Math.max(0, (val / benchmark) * 50));
-            
-            const scores = [
-                calcScore(currentRatio, b.current),
-                calcScore(equityRatio, b.equity),
-                calcScore(opMargin, b.opMargin),
-                calcScore(roe, b.roe),
-                calcScore(turnover, b.turnover)
-            ];
+            const comparison = RadarScoring.compare({ currentRatio, equityRatio, opMargin, roe, turnover }, b);
 
-            radarChartInstance.data.datasets[0].data = scores;
+            // 0番は必ず自社実績、1番は必ず業界平均（50点）として明示的に更新する。
+            radarChartInstance.data.datasets[0].data = comparison.company;
+            radarChartInstance.data.datasets[1].data = comparison.industry;
             radarChartInstance.data.datasets[1].label = b.name + ' 平均';
             radarChartInstance.update();
         }
@@ -2328,7 +2447,7 @@
 
         function loadPeriodDataToModal() {
             const target = document.getElementById('inputPeriodTarget').value;
-            // 直近のPDF読取値を最優先し、サンプル表示中でも自社データを初期値にする
+            // 直近のPDF読取値を最優先し、自社データを初期値にする
             const sourceState = latestImportedDataCache || customDataCache || appState;
             const data = normalizePeriod(target === 'current' ? sourceState.currentPeriod : sourceState.previousPeriod);
             const unitDivider = ManualEntry.normalizeDivider(
@@ -2413,7 +2532,7 @@
             event.preventDefault();
             const unitDivider = parseFloat(document.getElementById('inputUnit').value) || 1;
             const target = document.getElementById('inputPeriodTarget').value;
-            // サンプル表示中でも、読込済みの自社データを土台として調整する
+            // 読込済みの自社データを土台として調整する
             if (latestImportedDataCache || customDataCache) {
                 appState = JSON.parse(JSON.stringify(latestImportedDataCache || customDataCache));
             }
@@ -3690,6 +3809,94 @@
             document.getElementById('pdfExportModal').classList.toggle('hidden');
         }
 
+        function renderPdfVisualPage(bs, pl, operatingProfit, netProfit) {
+            const amount = value => `¥${Math.round(Number(value) || 0).toLocaleString()}M`;
+            const currentAssets = (bs.cashEquiv || 0) + (bs.inventory || 0) + (bs.otherCurrentAssets || 0);
+            const totalAssets = currentAssets + (bs.fixedAssets || 0);
+            const totalLiabEquity = (bs.currentLiabilities || 0) + (bs.fixedLiabilities || 0) + (bs.equity || 0);
+            const bsBase = Math.max(Math.abs(totalAssets), Math.abs(totalLiabEquity), 1);
+            const pct = (value, base = bsBase) => Math.max(0, Math.min(100, (Math.abs(Number(value) || 0) / Math.max(Math.abs(base), 1)) * 100));
+            const stackBox = (label, value, percent, color) => `
+                <div class="${color} text-white rounded p-2 flex flex-col justify-between overflow-hidden" style="flex:${Math.max(7, percent)} 1 0%">
+                    <div class="font-bold text-[10px] flex justify-between gap-1"><span>${label}</span><span>${amount(value)}</span></div>
+                    <span class="text-[9px] text-right opacity-90">${percent.toFixed(1)}%</span>
+                </div>`;
+
+            const bsStructure = document.getElementById('pdfBsStructure');
+            bsStructure.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 h-full text-[10px]">
+                    <div class="flex flex-col min-h-0 gap-1">
+                        ${stackBox('流動資産', currentAssets, pct(currentAssets), 'bg-sky-600')}
+                        ${stackBox('固定資産', bs.fixedAssets, pct(bs.fixedAssets), 'bg-indigo-700')}
+                    </div>
+                    <div class="flex flex-col min-h-0 gap-1">
+                        ${stackBox('流動負債', bs.currentLiabilities, pct(bs.currentLiabilities), 'bg-amber-600')}
+                        ${stackBox('固定負債', bs.fixedLiabilities, pct(bs.fixedLiabilities), 'bg-orange-700')}
+                        ${stackBox('純資産', bs.equity, pct(bs.equity), 'bg-emerald-600')}
+                    </div>
+                </div>`;
+
+            const revenue = Number(pl.revenue) || 0;
+            const cost = Number(pl.costOfSales) || 0;
+            const sga = Number(pl.sga) || 0;
+            const plBase = Math.max(Math.abs(revenue), 1);
+            const netLabel = netProfit >= 0 ? '当期純利益' : '当期純損失';
+            const otherAndTax = revenue - cost - sga - netProfit;
+            const plStructure = document.getElementById('pdfPlBlockStructure');
+            plStructure.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 h-full text-[10px]">
+                    <div class="bg-indigo-700 text-white rounded p-2 flex flex-col justify-between">
+                        <div class="font-bold flex justify-between gap-1"><span>総売上高</span><span>${amount(revenue)}</span></div>
+                        <span class="text-[9px] text-right opacity-90">基準 100.0%</span>
+                    </div>
+                    <div class="flex flex-col min-h-0 gap-1">
+                        ${stackBox('売上原価', cost, pct(cost, plBase), 'bg-rose-500')}
+                        ${stackBox('販管費', sga, pct(sga, plBase), 'bg-amber-500')}
+                        ${stackBox('税・営業外等', otherAndTax, pct(otherAndTax, plBase), 'bg-slate-600')}
+                        ${stackBox(netLabel, netProfit, pct(netProfit, plBase), netProfit >= 0 ? 'bg-emerald-600' : 'bg-rose-700')}
+                    </div>
+                </div>`;
+
+            const grossProfit = revenue - cost;
+            const stepPct = value => Math.max(0, Math.min(100, (Math.abs(Number(value) || 0) / plBase) * 100));
+            const totalBar = (label, value, color) => `
+                <div class="relative h-full min-w-0">
+                    <div class="absolute bottom-7 left-1 right-1 ${color} rounded-t text-white text-[8px] flex items-start justify-center pt-1 overflow-hidden" style="height:${Math.max(3, stepPct(value) * 0.78)}%">${amount(value)}</div>
+                    <div class="absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-slate-600 leading-tight">${label}</div>
+                </div>`;
+            const deductionBar = (label, value, remaining, color) => `
+                <div class="relative h-full min-w-0">
+                    <div class="absolute left-1 right-1 ${color} rounded text-white text-[8px] flex items-start justify-center pt-1 overflow-hidden" style="bottom:calc(1.75rem + ${stepPct(remaining) * 0.78}%);height:${Math.max(3, stepPct(value) * 0.78)}%">-${amount(value).slice(1)}</div>
+                    <div class="absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-slate-600 leading-tight">${label}</div>
+                </div>`;
+            document.getElementById('pdfPlWaterfallStructure').innerHTML = `
+                <div class="grid grid-cols-6 gap-1 h-full border-b border-slate-300 px-1">
+                    ${totalBar('売上高', revenue, 'bg-indigo-700')}
+                    ${deductionBar('売上原価', cost, grossProfit, 'bg-rose-500')}
+                    ${totalBar('売上総利益', grossProfit, 'bg-sky-600')}
+                    ${deductionBar('販管費', sga, operatingProfit, 'bg-amber-500')}
+                    ${totalBar('営業利益', operatingProfit, operatingProfit >= 0 ? 'bg-emerald-600' : 'bg-rose-700')}
+                    ${totalBar(netLabel, netProfit, netProfit >= 0 ? 'bg-teal-600' : 'bg-rose-800')}
+                </div>`;
+
+            setText('pdfPage2CompanyName', appState.companyName || '対象企業');
+            const industryKey = document.getElementById('industrySelect').value;
+            const benchmark = benchmarks[industryKey];
+            setText('pdfRadarCaption', `青：自社実績 / 灰：${benchmark.name}平均（業界平均=50点）`);
+            const radarImage = document.getElementById('pdfRadarImage');
+            const radarFallback = document.getElementById('pdfRadarFallback');
+            if (radarChartInstance && typeof radarChartInstance.toBase64Image === 'function') {
+                radarChartInstance.update('none');
+                radarImage.src = radarChartInstance.toBase64Image('image/png', 1);
+                radarImage.classList.remove('hidden');
+                radarFallback.classList.add('hidden');
+            } else {
+                radarImage.removeAttribute('src');
+                radarImage.classList.add('hidden');
+                radarFallback.classList.remove('hidden');
+            }
+        }
+
         function exportPdfReport() {
             const bs = appState.currentPeriod.bs;
             const pl = appState.currentPeriod.pl;
@@ -3772,6 +3979,8 @@
                 commentary += "流動性およびコスト管理の更なる見直しを進めることで、収益性と財務の安全性を高めることができます。";
             }
             document.getElementById('pdfOverallComment').textContent = commentary;
+
+            renderPdfVisualPage(bs, pl, operatingProfit, netProfit);
 
             togglePdfModal();
         }
