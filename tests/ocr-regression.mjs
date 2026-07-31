@@ -67,6 +67,7 @@ const expected = {
     equity: 4875245,
     revenue: 54321098,
     sga: 49876543,
+    operatingProfit: 4444555,
     nonOpIncome: 123456,
     taxes: 987654
 };

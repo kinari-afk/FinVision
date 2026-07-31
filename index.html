@@ -249,7 +249,10 @@
             <div id="rawDataDrawer" class="hidden mb-6">
                 <div class="bg-slate-800 rounded-xl p-4 text-slate-300 text-xs shadow-inner">
                     <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
-                        <span class="font-bold text-white"><i class="fa-solid fa-list-check"></i> 抽出・入力データ確認表</span>
+                        <div>
+                            <span class="font-bold text-white"><i class="fa-solid fa-list-check"></i> 抽出・入力データ確認表</span>
+                            <span id="rawDataMeta" class="block mt-0.5 text-[10px] text-slate-400">現在表示中のデータ</span>
+                        </div>
                         <button onclick="toggleRawDataDrawer()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i> 閉じる</button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -533,6 +536,8 @@
                             </optgroup>
                             <optgroup label="医療・介護・福祉特化モデル">
                                 <option value="medical" selected>医療・福祉モデル (全般)</option>
+                                <option value="homeNursing">訪問看護</option>
+                                <option value="homeCare">訪問介護</option>
                                 <option value="kaigo">介護事業 (総合)</option>
                                 <option value="dayservice">通所介護 (デイサービス)</option>
                                 <option value="kanta">看護小規模多機能型居宅介護</option>
@@ -546,7 +551,11 @@
                     <div class="h-[250px] w-full relative">
                         <canvas id="radarChart"></canvas>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-2 text-center">※各指標を100点満点でスコア化し、業界目安と比較しています。</p>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">
+                        ※各指標を100点満点でスコア化。訪問看護・訪問介護の収益性目安は
+                        <a href="https://www.mhlw.go.jp/toukei/list/dl/153-1/r07_gaikyoukekka.pdf" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">厚生労働省「令和7年度介護事業経営概況調査」</a>
+                        の令和6年度決算を参考にしています。
+                    </p>
                 </div>
 
                 <!-- 資金繰り・キャッシュフロー診断 -->
@@ -785,7 +794,7 @@
                     </div>
                     <div>
                         <label class="font-bold text-slate-700 block mb-1">入力単位（換算）</label>
-                        <select id="inputUnit" onchange="convertUnitNotice()" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500">
+                        <select id="inputUnit" onchange="convertUnitNotice(); updateManualOperatingProfitCheck()" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500">
                             <option value="1">百万円 (そのままとする)</option>
                             <option value="1000">千円 (百万円に自動変換)</option>
                             <option value="1000000">円 (百万円に自動変換)</option>
@@ -864,15 +873,26 @@
                         <div class="space-y-2">
                             <div>
                                 <label class="block text-slate-700 font-bold">売上高（総収益）</label>
-                                <input type="number" step="any" id="inputRevenue" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono font-bold">
+                                <input type="number" step="any" id="inputRevenue" required oninput="updateManualOperatingProfitCheck()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono font-bold">
                             </div>
                             <div>
                                 <label class="block text-slate-600">売上原価</label>
-                                <input type="number" step="any" id="inputCostOfSales" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                <input type="number" step="any" id="inputCostOfSales" required oninput="updateManualOperatingProfitCheck()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
                             </div>
                             <div>
                                 <label class="block text-slate-600">販売費及び一般管理費 (販管費)</label>
-                                <input type="number" step="any" id="inputSGA" required class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                                <input type="number" step="any" id="inputSGA" required oninput="updateManualOperatingProfitCheck()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono">
+                            </div>
+                            <div class="rounded-lg border border-emerald-300 bg-white p-2">
+                                <label class="block text-emerald-800 font-bold">営業利益（PDF記載値・手入力値）</label>
+                                <input type="number" step="any" id="inputOperatingProfit"
+                                       oninput="document.getElementById('inputOperatingProfitMode').value='reported'; updateManualOperatingProfitCheck()"
+                                       class="w-full border border-emerald-400 bg-emerald-50/50 rounded px-2 py-1 font-mono font-bold">
+                                <label class="block text-slate-600 mt-1">分析に使用する値</label>
+                                <select id="inputOperatingProfitMode" onchange="updateManualOperatingProfitCheck()" class="w-full border border-slate-300 rounded px-2 py-1 bg-white font-bold">
+                                    <option value="reported">PDF記載値・手入力値を採用</option>
+                                    <option value="calculated">売上高－売上原価－販管費の計算値を採用</option>
+                                </select>
                             </div>
                         </div>
 
@@ -891,6 +911,7 @@
                             </div>
                         </div>
                     </div>
+                    <div id="manualOperatingProfitCheck" class="mt-3 text-[11px] font-bold p-2.5 rounded-lg border"></div>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
@@ -997,6 +1018,7 @@
             </div>
 
             <div id="reviewBalanceCheck" class="text-xs font-bold p-2.5 rounded-lg border"></div>
+            <div id="reviewProfitCheck" class="text-xs font-bold p-2.5 rounded-lg border"></div>
 
             <div class="flex justify-between items-center gap-2 pt-1">
                 <button type="button" onclick="toggleRawText()" class="text-[11px] text-slate-500 hover:text-slate-800 underline">
@@ -1189,7 +1211,16 @@
             return { cashEquiv: 0, cash: null, inventory: 0, otherCurrentAssets: 0, fixedAssets: 0, currentLiabilities: 0, fixedLiabilities: 0, equity: 0 };
         }
         function emptyPl() {
-            return { revenue: 0, costOfSales: 0, sga: 0, nonOpIncome: 0, extraordinary: 0, taxes: 0 };
+            return {
+                revenue: 0,
+                costOfSales: 0,
+                sga: 0,
+                operatingProfit: null,
+                operatingProfitMode: 'calculated',
+                nonOpIncome: 0,
+                extraordinary: 0,
+                taxes: 0
+            };
         }
         // 旧形式データ（otherCurrentAssets / cash なし）を読み込んでも壊れないよう補完する
         function normalizePeriod(period) {
@@ -1271,6 +1302,8 @@
             medical: { name: '医療・福祉(全般)', current: 150, equity: 40, opMargin: 8, roe: 10, turnover: 1.2 },
             manufacturing: { name: '製造', current: 140, equity: 50, opMargin: 6, roe: 7, turnover: 1.0 },
             // 新規追加: 介護・福祉系モデル
+            homeNursing: { name: '訪問看護', current: 150, equity: 40, opMargin: 10.3, roe: 10, turnover: 1.3 },
+            homeCare: { name: '訪問介護', current: 150, equity: 35, opMargin: 9.6, roe: 9, turnover: 1.5 },
             kaigo: { name: '介護(総合)', current: 150, equity: 40, opMargin: 6, roe: 8, turnover: 1.5 },
             dayservice: { name: 'デイサービス', current: 140, equity: 35, opMargin: 5, roe: 7, turnover: 1.2 },
             kanta: { name: '看護小規模多機能', current: 130, equity: 30, opMargin: 8, roe: 10, turnover: 1.0 }, // 施設・設備投資が重め
@@ -1422,6 +1455,12 @@
             function periodFromReviewValues(values, multiplier) {
                 const m = Number(multiplier);
                 const conv = key => (typeof values[key] === 'number' ? values[key] * m : 0);
+                const reportedOperatingProfit = typeof values.operatingProfit === 'number'
+                    ? values.operatingProfit * m
+                    : null;
+                const operatingProfitMode = reportedOperatingProfit !== null && values.operatingProfitMode !== 'calculated'
+                    ? 'reported'
+                    : 'calculated';
                 return {
                     bs: {
                         cashEquiv: Math.max(0, conv('quickAssets')),
@@ -1437,11 +1476,70 @@
                         revenue: Math.max(0, conv('revenue')),
                         costOfSales: Math.max(0, conv('costOfSales')),
                         sga: Math.max(0, conv('sga')),
+                        operatingProfit: reportedOperatingProfit,
+                        operatingProfitMode,
                         nonOpIncome: conv('nonOpIncome'),
                         extraordinary: conv('extraordinary'),
                         taxes: conv('taxes')
                     }
                 };
+            }
+
+            function calculatedOperatingProfit(pl) {
+                const value = (Number(pl && pl.revenue) || 0)
+                    - (Number(pl && pl.costOfSales) || 0)
+                    - (Number(pl && pl.sga) || 0);
+                return Number(value.toFixed(12));
+            }
+
+            function resolveOperatingProfit(pl) {
+                const rawReported = pl && pl.operatingProfit;
+                const reported = typeof rawReported === 'number' && Number.isFinite(rawReported) ? rawReported : null;
+                if (pl && pl.operatingProfitMode === 'reported' && reported !== null) return reported;
+                return calculatedOperatingProfit(pl);
+            }
+
+            function compareOperatingProfit(pl, minimumTolerance = 0) {
+                const rawReported = pl && pl.operatingProfit;
+                const reported = typeof rawReported === 'number' && Number.isFinite(rawReported) ? rawReported : null;
+                const calculated = calculatedOperatingProfit(pl);
+                const tolerance = Math.max(Number(minimumTolerance) || 0, Math.abs(Number(pl && pl.revenue) || 0) * 0.002);
+                const difference = reported === null ? null : Number((reported - calculated).toFixed(12));
+                return {
+                    reported,
+                    calculated,
+                    difference,
+                    tolerance,
+                    hasDifference: difference !== null && Math.abs(difference) > tolerance
+                };
+            }
+
+            function mergeImportedPeriod(baseState, period, target, companyName, unitDivider, meta = null) {
+                const next = JSON.parse(JSON.stringify(baseState || {}));
+                const periodKey = periodStateKey(target);
+                next[periodKey] = period;
+                next.manualInputUnits = {
+                    ...(next.manualInputUnits || {}),
+                    [target]: normalizeDivider(unitDivider)
+                };
+                if (companyName) next.companyName = companyName;
+                if (meta) next.importMeta = { ...meta, target };
+                return next;
+            }
+
+            function rawValueDisplay(value, divider) {
+                const formatted = formatValue(value, divider);
+                if (formatted === '') return '—';
+                const [integer, decimal] = formatted.split('.');
+                const grouped = Number(integer).toLocaleString('ja-JP');
+                return decimal ? `${grouped}.${decimal}` : grouped;
+            }
+
+            function rawUnitLabel(divider) {
+                const normalized = normalizeDivider(divider);
+                if (normalized === 1000000) return '円';
+                if (normalized === 1000) return '千円';
+                return '百万円';
             }
 
             function formatValue(value, divider) {
@@ -1452,19 +1550,23 @@
                 return String(Number(scaled.toFixed(6)));
             }
 
-            return { dividerFromMultiplier, normalizeDivider, periodStateKey, periodFromReviewValues, formatValue };
+            return {
+                dividerFromMultiplier, normalizeDivider, periodStateKey, periodFromReviewValues, formatValue,
+                calculatedOperatingProfit, resolveOperatingProfit, compareOperatingProfit,
+                mergeImportedPeriod, rawValueDisplay, rawUnitLabel
+            };
         })();
 
-        function rememberImportedPeriod(period, target, companyName, unitDivider) {
+        function rememberImportedPeriod(period, target, companyName, unitDivider, meta = null) {
             const base = latestImportedDataCache || customDataCache || appState;
-            latestImportedDataCache = JSON.parse(JSON.stringify(base));
-            const periodKey = ManualEntry.periodStateKey(target);
-            latestImportedDataCache[periodKey] = normalizePeriod(period);
-            latestImportedDataCache.manualInputUnits = {
-                ...(latestImportedDataCache.manualInputUnits || {}),
-                [target]: ManualEntry.normalizeDivider(unitDivider)
-            };
-            if (companyName) latestImportedDataCache.companyName = companyName;
+            latestImportedDataCache = ManualEntry.mergeImportedPeriod(
+                base,
+                normalizePeriod(period),
+                target,
+                companyName,
+                unitDivider,
+                meta
+            );
         }
 
         function switchPlMode(mode) {
@@ -1489,6 +1591,7 @@
         }
 
         function toggleRawDataDrawer() {
+            refreshRawDataTable();
             document.getElementById('rawDataDrawer').classList.toggle('hidden');
         }
 
@@ -1535,7 +1638,7 @@
             const totalLiabAndEquity = totalLiabilities + (bs.equity || 0);
 
             const grossProfit = (pl.revenue || 0) - (pl.costOfSales || 0);
-            const operatingProfit = grossProfit - (pl.sga || 0);
+            const operatingProfit = ManualEntry.resolveOperatingProfit(pl);
             const recurringProfit = operatingProfit + (pl.nonOpIncome || 0);
             const netProfitBeforeTax = recurringProfit + (pl.extraordinary || 0);
             const netProfit = netProfitBeforeTax - (pl.taxes || 0);
@@ -1544,8 +1647,12 @@
             const pCurrentAssets = (pBs.cashEquiv || 0) + (pBs.inventory || 0) + (pBs.otherCurrentAssets || 0);
             const pTotalAssets = pCurrentAssets + (pBs.fixedAssets || 0);
             const pGrossProfit = (pPl.revenue || 0) - (pPl.costOfSales || 0);
-            const pOperatingProfit = pGrossProfit - (pPl.sga || 0);
+            const pOperatingProfit = ManualEntry.resolveOperatingProfit(pPl);
             const pNetProfit = pOperatingProfit + pPl.nonOpIncome + pPl.extraordinary - pPl.taxes;
+
+            // 一覧表はグラフ描画より先に、直近の読込データから確実に更新する。
+            // Chart.js等で後続処理が失敗しても、数値一覧だけは古いまま残さない。
+            refreshRawDataTable();
 
             // Header Displays
             setText('displayCompanyName', appState.companyName || '未設定企業');
@@ -1699,9 +1806,6 @@
             document.getElementById('plOpProfitMargin').textContent = `${opMargin.toFixed(1)}%`;
             document.getElementById('plCostRatio').textContent = `${costRatio.toFixed(1)}%`;
             document.getElementById('plSgaRatio').textContent = `${sgaRatio.toFixed(1)}%`;
-
-            // Verification Table Rendering
-            populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit);
 
             // Ratios & Analysis
             const currentRatio = bs.currentLiabilities > 0 ? (currentAssets / bs.currentLiabilities) * 100 : 0;
@@ -1948,11 +2052,12 @@
             const pl = appState.currentPeriod.pl;
             const currentAssets = bs.cashEquiv + bs.inventory + (bs.otherCurrentAssets || 0);
             const totalAssets = currentAssets + bs.fixedAssets;
-            const netProfit = pl.revenue - pl.costOfSales - pl.sga + pl.nonOpIncome + pl.extraordinary - pl.taxes;
+            const operatingProfit = ManualEntry.resolveOperatingProfit(pl);
+            const netProfit = operatingProfit + pl.nonOpIncome + pl.extraordinary - pl.taxes;
             
             const currentRatio = bs.currentLiabilities > 0 ? (currentAssets / bs.currentLiabilities) * 100 : 0;
             const equityRatio = totalAssets > 0 ? (bs.equity / totalAssets) * 100 : 0;
-            const opMargin = pl.revenue > 0 ? ((pl.revenue - pl.costOfSales - pl.sga) / pl.revenue) * 100 : 0;
+            const opMargin = pl.revenue > 0 ? (operatingProfit / pl.revenue) * 100 : 0;
             const roe = bs.equity > 0 ? (netProfit / bs.equity) * 100 : 0;
             const turnover = totalAssets > 0 ? (pl.revenue / totalAssets) : 0;
 
@@ -1986,7 +2091,7 @@
             const targetProfit = parseFloat(inputVal);
             const pl = appState.currentPeriod.pl;
             const currentRev = pl.revenue || 1;
-            const currentOpProfit = currentRev - pl.costOfSales - pl.sga;
+            const currentOpProfit = ManualEntry.resolveOperatingProfit(pl);
             
             if (targetProfit <= currentOpProfit) {
                 alert(`入力された目標（¥${targetProfit}M）は、現在の営業利益（¥${Math.round(currentOpProfit)}M）以下です。より高い目標を設定してください。`);
@@ -2021,7 +2126,37 @@
             document.getElementById('gsCostDiff').textContent = `現在の総コストから -${costDiffPct.toFixed(1)}%`;
         }
 
-        function populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit) {
+        function refreshRawDataTable() {
+            const sourceState = latestImportedDataCache || customDataCache || appState;
+            const target = sourceState.importMeta && sourceState.importMeta.target === 'previous' ? 'previous' : 'current';
+            const period = normalizePeriod(target === 'previous' ? sourceState.previousPeriod : sourceState.currentPeriod);
+            const bs = period.bs;
+            const pl = period.pl;
+            const currentAssets = bs.cashEquiv + bs.inventory + (bs.otherCurrentAssets || 0);
+            const totalAssets = currentAssets + bs.fixedAssets;
+            const grossProfit = pl.revenue - pl.costOfSales;
+            const operatingProfit = ManualEntry.resolveOperatingProfit(pl);
+            const recurringProfit = operatingProfit + pl.nonOpIncome;
+            const netProfit = recurringProfit + pl.extraordinary - pl.taxes;
+            const unitDivider = ManualEntry.normalizeDivider(
+                sourceState.manualInputUnits && sourceState.manualInputUnits[target]
+            );
+
+            populateVerificationTables(
+                bs, pl, currentAssets, totalAssets, grossProfit,
+                operatingProfit, recurringProfit, netProfit, unitDivider
+            );
+
+            const meta = sourceState.importMeta || null;
+            const sourceLabel = meta
+                ? `${target === 'previous' ? '前期' : '当期'}・最新読込：${meta.fileName || sourceState.companyName || '名称未設定'}${meta.periodLabel ? ` / ${meta.periodLabel}` : ''}`
+                : `${target === 'previous' ? '前期' : '当期'}・${sourceState.companyName || '現在表示中のデータ'}`;
+            setText('rawDataMeta', `${sourceLabel}（${ManualEntry.rawUnitLabel(unitDivider)}単位）`);
+        }
+
+        function populateVerificationTables(bs, pl, currentAssets, totalAssets, grossProfit, operatingProfit, recurringProfit, netProfit, unitDivider = 1) {
+            const unitLabel = ManualEntry.rawUnitLabel(unitDivider);
+            const amount = value => `¥${ManualEntry.rawValueDisplay(value, unitDivider)} ${unitLabel}`;
             const bsRows = [
                 { name: '流動資産（当座資産）', val: bs.cashEquiv, pct: totalAssets > 0 ? (bs.cashEquiv / totalAssets) * 100 : 0 },
                 { name: '流動資産（棚卸資産）', val: bs.inventory, pct: totalAssets > 0 ? (bs.inventory / totalAssets) * 100 : 0 },
@@ -2040,19 +2175,26 @@
                 const bgClass = r.header ? 'bg-sky-50 font-bold border-t border-b' : (r.bold ? 'font-semibold' : '');
                 bsHtml += `<tr class="${bgClass}">
                     <td class="px-3 py-1.5">${r.name}</td>
-                    <td class="px-3 py-1.5 text-right font-mono">¥${Math.round(r.val).toLocaleString()}M</td>
+                    <td class="px-3 py-1.5 text-right font-mono">${amount(r.val)}</td>
                     <td class="px-3 py-1.5 text-right font-mono text-slate-500">${r.pct.toFixed(1)}%</td>
                 </tr>`;
             });
             document.getElementById('bsTableBody').innerHTML = bsHtml;
 
             const rev = Math.max(1, pl.revenue);
+            const opComparison = ManualEntry.compareOperatingProfit(pl);
+            const adoptedLabel = pl.operatingProfitMode === 'reported' && opComparison.reported !== null
+                ? '営業利益（採用値：PDF記載・手入力）'
+                : '営業利益（採用値：計算）';
             const plRows = [
                 { name: '売上高', val: pl.revenue, pct: 100.0, header: true },
                 { name: '売上原価', val: pl.costOfSales, pct: (pl.costOfSales / rev) * 100 },
                 { name: '売上総利益（粗利）', val: grossProfit, pct: (grossProfit / rev) * 100, bold: true },
                 { name: '販売費及び一般管理費', val: pl.sga, pct: (pl.sga / rev) * 100 },
-                { name: '営業利益', val: operatingProfit, pct: (operatingProfit / rev) * 100, bold: true },
+                ...(opComparison.reported !== null ? [{ name: '営業利益（PDF記載・手入力）', val: opComparison.reported, pct: (opComparison.reported / rev) * 100 }] : []),
+                { name: '営業利益（計算値）', val: opComparison.calculated, pct: (opComparison.calculated / rev) * 100 },
+                ...(opComparison.hasDifference ? [{ name: '⚠ 営業利益の差異（記載－計算）', val: opComparison.difference, pct: (opComparison.difference / rev) * 100, warning: true }] : []),
+                { name: adoptedLabel, val: operatingProfit, pct: (operatingProfit / rev) * 100, bold: true },
                 { name: '営業外損益', val: pl.nonOpIncome, pct: (pl.nonOpIncome / rev) * 100 },
                 { name: '経常利益', val: recurringProfit, pct: (recurringProfit / rev) * 100, bold: true },
                 { name: '特別損益', val: pl.extraordinary, pct: (pl.extraordinary / rev) * 100 },
@@ -2062,10 +2204,10 @@
 
             let plHtml = '';
             plRows.forEach(r => {
-                const bgClass = r.header ? 'bg-emerald-50 font-bold border-t border-b' : (r.bold ? 'font-semibold' : '');
+                const bgClass = r.header ? 'bg-emerald-50 font-bold border-t border-b' : (r.warning ? 'bg-rose-100 text-rose-900 font-bold' : (r.bold ? 'font-semibold' : ''));
                 plHtml += `<tr class="${bgClass}">
                     <td class="px-3 py-1.5">${r.name}</td>
-                    <td class="px-3 py-1.5 text-right font-mono">¥${Math.round(r.val).toLocaleString()}M</td>
+                    <td class="px-3 py-1.5 text-right font-mono">${amount(r.val)}</td>
                     <td class="px-3 py-1.5 text-right font-mono text-slate-500">${r.pct.toFixed(1)}%</td>
                 </tr>`;
             });
@@ -2144,9 +2286,9 @@
             const simCostRatio = Math.max(0, baseCostRatio + costSimPct);
             const simCost = simRev * (simCostRatio / 100);
             const simSGA = appState.currentPeriod.pl.sga;
-            const simOpProfit = simRev - simCost - simSGA;
-
-            const baseOpProfit = baseRev - appState.currentPeriod.pl.costOfSales - simSGA;
+            const calculatedBaseOpProfit = ManualEntry.calculatedOperatingProfit(appState.currentPeriod.pl);
+            const baseOpProfit = ManualEntry.resolveOperatingProfit(appState.currentPeriod.pl);
+            const simOpProfit = baseOpProfit + ((simRev - simCost - simSGA) - calculatedBaseOpProfit);
             const diffOp = simOpProfit - baseOpProfit;
 
             const approxNetProfit = simOpProfit * 0.7;
@@ -2210,9 +2352,51 @@
             document.getElementById('inputRevenue').value = display(data.pl.revenue);
             document.getElementById('inputCostOfSales').value = display(data.pl.costOfSales);
             document.getElementById('inputSGA').value = display(data.pl.sga);
+            document.getElementById('inputOperatingProfit').value = typeof data.pl.operatingProfit === 'number'
+                ? display(data.pl.operatingProfit)
+                : '';
+            document.getElementById('inputOperatingProfitMode').value =
+                data.pl.operatingProfitMode === 'reported' && typeof data.pl.operatingProfit === 'number'
+                    ? 'reported'
+                    : 'calculated';
             document.getElementById('inputNonOpIncome').value = display(data.pl.nonOpIncome);
             document.getElementById('inputExtraordinary').value = display(data.pl.extraordinary);
             document.getElementById('inputTaxes').value = display(data.pl.taxes);
+            updateManualOperatingProfitCheck();
+        }
+
+        function updateManualOperatingProfitCheck() {
+            const box = document.getElementById('manualOperatingProfitCheck');
+            if (!box) return;
+            const read = id => {
+                const value = document.getElementById(id).value;
+                if (value === '') return null;
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            };
+            const reported = read('inputOperatingProfit');
+            const pl = {
+                revenue: read('inputRevenue') || 0,
+                costOfSales: read('inputCostOfSales') || 0,
+                sga: read('inputSGA') || 0,
+                operatingProfit: reported
+            };
+            const comparison = ManualEntry.compareOperatingProfit(pl, 1);
+            const modeEl = document.getElementById('inputOperatingProfitMode');
+            if (reported === null && modeEl.value === 'reported') modeEl.value = 'calculated';
+            const unitLabel = ManualEntry.rawUnitLabel(document.getElementById('inputUnit').value);
+            const fmt = value => value === null ? '未入力' : Number(value.toFixed(6)).toLocaleString('ja-JP');
+
+            if (comparison.reported === null) {
+                box.className = 'mt-3 text-[11px] font-bold p-2.5 rounded-lg border bg-sky-50 border-sky-200 text-sky-900';
+                box.innerHTML = `<i class="fa-solid fa-calculator"></i> 営業利益の計算値：${fmt(comparison.calculated)} ${unitLabel}（手入力値がないため計算値を採用）`;
+                return;
+            }
+
+            box.className = `mt-3 text-[11px] font-bold p-2.5 rounded-lg border ${comparison.hasDifference ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`;
+            box.innerHTML = comparison.hasDifference
+                ? `<i class="fa-solid fa-triangle-exclamation"></i> 差異があります：手入力 ${fmt(comparison.reported)} / 計算 ${fmt(comparison.calculated)} / 差額 ${fmt(comparison.difference)} ${unitLabel}`
+                : `<i class="fa-solid fa-circle-check"></i> 手入力値 ${fmt(comparison.reported)} と計算値 ${fmt(comparison.calculated)} ${unitLabel} は一致しています。`;
         }
 
         function convertUnitNotice() {
@@ -2250,6 +2434,12 @@
             targetData.pl.revenue = (parseFloat(document.getElementById('inputRevenue').value) || 0) / unitDivider;
             targetData.pl.costOfSales = (parseFloat(document.getElementById('inputCostOfSales').value) || 0) / unitDivider;
             targetData.pl.sga = (parseFloat(document.getElementById('inputSGA').value) || 0) / unitDivider;
+            const operatingProfitRaw = document.getElementById('inputOperatingProfit').value;
+            targetData.pl.operatingProfit = operatingProfitRaw === '' ? null : (parseFloat(operatingProfitRaw) || 0) / unitDivider;
+            targetData.pl.operatingProfitMode = targetData.pl.operatingProfit !== null
+                && document.getElementById('inputOperatingProfitMode').value === 'reported'
+                    ? 'reported'
+                    : 'calculated';
             targetData.pl.nonOpIncome = (parseFloat(document.getElementById('inputNonOpIncome').value) || 0) / unitDivider;
             targetData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
             targetData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
@@ -2866,6 +3056,7 @@
                     { key: 'revenue',            label: '売上高',                       value: revenue,     group: 'pl' },
                     { key: 'costOfSales',        label: '売上原価',                     value: cost,        group: 'pl' },
                     { key: 'sga',                label: '販売費及び一般管理費',         value: sga,         group: 'pl' },
+                    { key: 'operatingProfit',    label: '営業利益（PDF記載・手入力）',   value: op,          group: 'pl', optional: true },
                     { key: 'nonOpIncome',        label: '営業外損益（収益−費用）',      value: nonOpNet,    group: 'pl' },
                     { key: 'extraordinary',      label: '特別損益（利益−損失）',        value: extraordinary, group: 'pl' },
                     { key: 'taxes',              label: '法人税等',                     value: taxes,       group: 'pl' }
@@ -3233,8 +3424,15 @@
                     initialPeriod,
                     'current',
                     initialCompany,
-                    ManualEntry.dividerFromMultiplier(result.unit.multiplier)
+                    ManualEntry.dividerFromMultiplier(result.unit.multiplier),
+                    {
+                        fileName: result.meta ? result.meta.fileName : '',
+                        method: result.meta ? result.meta.method : '',
+                        periodLabel: result.period ? result.period.label : '',
+                        importedAt: new Date().toISOString()
+                    }
                 );
+                refreshRawDataTable();
             }
 
             $('reviewCompanyName').value = result.company || (result.meta ? result.meta.fileName.replace(/\.[^/.]+$/, '') : '');
@@ -3280,7 +3478,7 @@
                     <td class="px-2.5 py-1.5 text-slate-400 text-[10px] max-w-[220px] truncate" title="${(r.evidence || '').replace(/"/g, '&quot;')}">${r.evidence ? `p.${r.page} ${r.evidence}` : '—'}</td>
                     <td class="px-2.5 py-1.5 text-right">
                         <input type="number" step="any" data-review-key="${r.key}" value="${r.value === null ? '' : r.value}"
-                               oninput="updateReviewBalance()"
+                               oninput="updateReviewChecks()"
                                class="w-32 text-right border rounded px-1.5 py-0.5 font-mono ${r.source === 'none' ? 'border-rose-300 bg-rose-50' : 'border-slate-300'}">
                     </td>
                     <td class="px-2.5 py-1.5 text-center">${srcBadge(r.source)}</td>
@@ -3292,7 +3490,7 @@
             $('reviewRawText').classList.add('hidden');
             $('reviewPeriodTarget').value = 'current';
 
-            updateReviewBalance();
+            updateReviewChecks();
             $('reviewModal').classList.remove('hidden');
         }
 
@@ -3303,7 +3501,7 @@
             pendingExtraction.unit.multiplier = m;
             pendingExtraction.unit.name = m === 1 ? '百万円' : (m === 0.001 ? '千円' : '円');
             setText('reviewUnitLabel', pendingExtraction.unit.name);
-            updateReviewBalance();
+            updateReviewChecks();
         }
 
         function readReviewInputs() {
@@ -3347,6 +3545,60 @@
             }
         }
 
+        function selectedReviewOperatingProfitMode() {
+            const selected = document.querySelector('input[name="reviewOperatingProfitMode"]:checked');
+            return selected ? selected.value : null;
+        }
+
+        function updateReviewOperatingProfitCheck() {
+            const v = readReviewInputs();
+            const box = $('reviewProfitCheck');
+            if (!box) return;
+            const previousMode = selectedReviewOperatingProfitMode();
+            const reported = typeof v.operatingProfit === 'number' ? v.operatingProfit : null;
+            const pl = {
+                revenue: Number(v.revenue) || 0,
+                costOfSales: Number(v.costOfSales) || 0,
+                sga: Number(v.sga) || 0,
+                operatingProfit: reported
+            };
+            const comparison = ManualEntry.compareOperatingProfit(pl, 1);
+            const mode = previousMode || (reported === null ? 'calculated' : 'reported');
+            const unitName = pendingExtraction ? pendingExtraction.unit.name : '';
+            const fmt = value => value === null ? '未入力' : Number(value.toFixed(6)).toLocaleString('ja-JP');
+            const differenceClass = comparison.hasDifference
+                ? 'bg-rose-50 border-rose-300 text-rose-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-900';
+            const differenceMessage = comparison.reported === null
+                ? 'PDF記載値は未検出です。計算値を採用します。'
+                : comparison.hasDifference
+                    ? `差異があります：記載値－計算値＝${fmt(comparison.difference)} ${unitName}`
+                    : '記載値と計算値は許容範囲内で一致しています。';
+
+            box.className = `text-xs font-bold p-3 rounded-lg border ${differenceClass}`;
+            box.innerHTML = `
+                <div class="flex flex-wrap gap-x-5 gap-y-1 mb-2">
+                    <span>PDF記載・手入力：${fmt(comparison.reported)} ${unitName}</span>
+                    <span>計算値：${fmt(comparison.calculated)} ${unitName}</span>
+                </div>
+                <div class="mb-2"><i class="fa-solid fa-${comparison.hasDifference ? 'triangle-exclamation' : 'circle-check'}"></i> ${differenceMessage}</div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-5 text-slate-800">
+                    <label class="flex items-center gap-1.5 ${reported === null ? 'opacity-50' : ''}">
+                        <input type="radio" name="reviewOperatingProfitMode" value="reported" ${mode === 'reported' ? 'checked' : ''} ${reported === null ? 'disabled' : ''}>
+                        PDF記載・手入力値を採用
+                    </label>
+                    <label class="flex items-center gap-1.5">
+                        <input type="radio" name="reviewOperatingProfitMode" value="calculated" ${mode === 'calculated' || reported === null ? 'checked' : ''}>
+                        売上高－売上原価－販管費の計算値を採用
+                    </label>
+                </div>`;
+        }
+
+        function updateReviewChecks() {
+            updateReviewBalance();
+            updateReviewOperatingProfitCheck();
+        }
+
         function toggleRawText() {
             const el = $('reviewRawText');
             if (el) el.classList.toggle('hidden');
@@ -3371,6 +3623,7 @@
                 if (!confirm('売上高が入力されていません。このまま反映すると収益性の指標が算出できません。\n\n決算書の売上高を入力してから反映することを推奨します。このまま続けますか？')) return;
             }
             const target = $('reviewPeriodTarget').value;
+            v.operatingProfitMode = selectedReviewOperatingProfitMode() || 'calculated';
             const period = ManualEntry.periodFromReviewValues(v, m);
 
             const name = ($('reviewCompanyName').value || '').trim();
@@ -3393,7 +3646,18 @@
                 ...(appState.manualInputUnits || {}),
                 [target]: inputUnitDivider
             };
-            rememberImportedPeriod(period, target, name, inputUnitDivider);
+            rememberImportedPeriod(
+                period,
+                target,
+                name,
+                inputUnitDivider,
+                {
+                    fileName: pendingExtraction.meta ? pendingExtraction.meta.fileName : '',
+                    method: pendingExtraction.meta ? pendingExtraction.meta.method : '',
+                    periodLabel: pendingExtraction.period ? pendingExtraction.period.label : '',
+                    importedAt: new Date().toISOString()
+                }
+            );
 
             saveCustomDataCache();
             closeReviewModal();
@@ -3433,7 +3697,7 @@
             const currentAssets = bs.cashEquiv + bs.inventory + (bs.otherCurrentAssets || 0);
             const totalAssets = currentAssets + bs.fixedAssets;
             const grossProfit = pl.revenue - pl.costOfSales;
-            const operatingProfit = grossProfit - pl.sga;
+            const operatingProfit = ManualEntry.resolveOperatingProfit(pl);
             const recurringProfit = operatingProfit + pl.nonOpIncome;
             const netProfit = recurringProfit + pl.extraordinary - pl.taxes;
 
