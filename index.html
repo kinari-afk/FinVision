@@ -1212,7 +1212,9 @@
             },
             // PDF読込時に抽出できた販管費内訳（[{name, value(百万円)}, ...]）
             sgaDetail: null,
-            periodLabel: null
+            periodLabel: null,
+            // 数値調整画面では、PDFに記載された元の単位で初期表示する
+            manualInputUnits: { current: 1, previous: 1 }
         };
 
         // サンプル用プリセットデータ
@@ -1254,6 +1256,8 @@
 
         // Cache last custom extracted/input data
         let customDataCache = null;
+        // PDFを読み取った直後（レビュー画面で未反映の場合を含む）の数値を保持する
+        let latestImportedDataCache = null;
         let plViewMode = 'block';
         let plChart = null;
         let radarChartInstance = null; // ★追加: レーダーチャート用変数
@@ -1396,6 +1400,71 @@
             customDataCache = JSON.parse(JSON.stringify(appState));
             const btn = document.getElementById('btnLoadedCustomData');
             if (btn) btn.classList.remove('hidden');
+        }
+
+        /** PDF読取値と数値調整画面の単位・表示値を相互変換する純粋関数 */
+        const ManualEntry = (() => {
+            function dividerFromMultiplier(multiplier) {
+                if (multiplier === 0.000001) return 1000000; // 円 → 百万円
+                if (multiplier === 0.001) return 1000;       // 千円 → 百万円
+                return 1;                                   // 百万円
+            }
+
+            function normalizeDivider(value) {
+                const divider = Number(value);
+                return [1, 1000, 1000000].includes(divider) ? divider : 1;
+            }
+
+            function periodStateKey(target) {
+                return target === 'previous' ? 'previousPeriod' : 'currentPeriod';
+            }
+
+            function periodFromReviewValues(values, multiplier) {
+                const m = Number(multiplier);
+                const conv = key => (typeof values[key] === 'number' ? values[key] * m : 0);
+                return {
+                    bs: {
+                        cashEquiv: Math.max(0, conv('quickAssets')),
+                        cash: typeof values.cash === 'number' ? Math.max(0, conv('cash')) : null,
+                        inventory: Math.max(0, conv('inventory')),
+                        otherCurrentAssets: Math.max(0, conv('otherCurrentAssets')),
+                        fixedAssets: Math.max(0, conv('fixedAssets')),
+                        currentLiabilities: Math.max(0, conv('currentLiabilities')),
+                        fixedLiabilities: Math.max(0, conv('fixedLiabilities')),
+                        equity: conv('equity')
+                    },
+                    pl: {
+                        revenue: Math.max(0, conv('revenue')),
+                        costOfSales: Math.max(0, conv('costOfSales')),
+                        sga: Math.max(0, conv('sga')),
+                        nonOpIncome: conv('nonOpIncome'),
+                        extraordinary: conv('extraordinary'),
+                        taxes: conv('taxes')
+                    }
+                };
+            }
+
+            function formatValue(value, divider) {
+                const scaled = Number(value) * normalizeDivider(divider);
+                if (!Number.isFinite(scaled)) return '';
+                const nearestInteger = Math.round(scaled);
+                if (Math.abs(scaled - nearestInteger) < 0.000001) return String(nearestInteger);
+                return String(Number(scaled.toFixed(6)));
+            }
+
+            return { dividerFromMultiplier, normalizeDivider, periodStateKey, periodFromReviewValues, formatValue };
+        })();
+
+        function rememberImportedPeriod(period, target, companyName, unitDivider) {
+            const base = latestImportedDataCache || customDataCache || appState;
+            latestImportedDataCache = JSON.parse(JSON.stringify(base));
+            const periodKey = ManualEntry.periodStateKey(target);
+            latestImportedDataCache[periodKey] = normalizePeriod(period);
+            latestImportedDataCache.manualInputUnits = {
+                ...(latestImportedDataCache.manualInputUnits || {}),
+                [target]: ManualEntry.normalizeDivider(unitDivider)
+            };
+            if (companyName) latestImportedDataCache.companyName = companyName;
         }
 
         function switchPlMode(mode) {
@@ -2108,8 +2177,6 @@
             if (modal.classList.contains('hidden')) {
                 // Initialize modal target to current period
                 document.getElementById('inputPeriodTarget').value = 'current';
-                document.getElementById('inputUnit').value = "1";
-                convertUnitNotice();
                 loadPeriodDataToModal();
                 modal.classList.remove('hidden');
             } else {
@@ -2119,24 +2186,33 @@
 
         function loadPeriodDataToModal() {
             const target = document.getElementById('inputPeriodTarget').value;
-            const data = target === 'current' ? appState.currentPeriod : appState.previousPeriod;
-            
-            document.getElementById('inputCompanyName').value = appState.companyName || '';
-            document.getElementById('inputCashEquiv').value = data.bs.cashEquiv;
-            document.getElementById('inputCash').value = (typeof data.bs.cash === 'number') ? data.bs.cash : '';
-            document.getElementById('inputInventory').value = data.bs.inventory;
-            document.getElementById('inputOtherCurrentAssets').value = data.bs.otherCurrentAssets || 0;
-            document.getElementById('inputFixedAssets').value = data.bs.fixedAssets;
-            document.getElementById('inputCurrentLiabilities').value = data.bs.currentLiabilities;
-            document.getElementById('inputFixedLiabilities').value = data.bs.fixedLiabilities;
-            document.getElementById('inputEquity').value = data.bs.equity;
+            // 直近のPDF読取値を最優先し、サンプル表示中でも自社データを初期値にする
+            const sourceState = latestImportedDataCache || customDataCache || appState;
+            const data = normalizePeriod(target === 'current' ? sourceState.currentPeriod : sourceState.previousPeriod);
+            const unitDivider = ManualEntry.normalizeDivider(
+                sourceState.manualInputUnits && sourceState.manualInputUnits[target]
+            );
+            const display = value => ManualEntry.formatValue(value, unitDivider);
 
-            document.getElementById('inputRevenue').value = data.pl.revenue;
-            document.getElementById('inputCostOfSales').value = data.pl.costOfSales;
-            document.getElementById('inputSGA').value = data.pl.sga;
-            document.getElementById('inputNonOpIncome').value = data.pl.nonOpIncome;
-            document.getElementById('inputExtraordinary').value = data.pl.extraordinary;
-            document.getElementById('inputTaxes').value = data.pl.taxes;
+            document.getElementById('inputUnit').value = String(unitDivider);
+            convertUnitNotice();
+            
+            document.getElementById('inputCompanyName').value = sourceState.companyName || '';
+            document.getElementById('inputCashEquiv').value = display(data.bs.cashEquiv);
+            document.getElementById('inputCash').value = (typeof data.bs.cash === 'number') ? display(data.bs.cash) : '';
+            document.getElementById('inputInventory').value = display(data.bs.inventory);
+            document.getElementById('inputOtherCurrentAssets').value = display(data.bs.otherCurrentAssets);
+            document.getElementById('inputFixedAssets').value = display(data.bs.fixedAssets);
+            document.getElementById('inputCurrentLiabilities').value = display(data.bs.currentLiabilities);
+            document.getElementById('inputFixedLiabilities').value = display(data.bs.fixedLiabilities);
+            document.getElementById('inputEquity').value = display(data.bs.equity);
+
+            document.getElementById('inputRevenue').value = display(data.pl.revenue);
+            document.getElementById('inputCostOfSales').value = display(data.pl.costOfSales);
+            document.getElementById('inputSGA').value = display(data.pl.sga);
+            document.getElementById('inputNonOpIncome').value = display(data.pl.nonOpIncome);
+            document.getElementById('inputExtraordinary').value = display(data.pl.extraordinary);
+            document.getElementById('inputTaxes').value = display(data.pl.taxes);
         }
 
         function convertUnitNotice() {
@@ -2153,6 +2229,10 @@
             event.preventDefault();
             const unitDivider = parseFloat(document.getElementById('inputUnit').value) || 1;
             const target = document.getElementById('inputPeriodTarget').value;
+            // サンプル表示中でも、読込済みの自社データを土台として調整する
+            if (latestImportedDataCache || customDataCache) {
+                appState = JSON.parse(JSON.stringify(latestImportedDataCache || customDataCache));
+            }
             const targetData = target === 'current' ? appState.currentPeriod : appState.previousPeriod;
 
             appState.companyName = document.getElementById('inputCompanyName').value;
@@ -2173,6 +2253,12 @@
             targetData.pl.nonOpIncome = (parseFloat(document.getElementById('inputNonOpIncome').value) || 0) / unitDivider;
             targetData.pl.extraordinary = (parseFloat(document.getElementById('inputExtraordinary').value) || 0) / unitDivider;
             targetData.pl.taxes = (parseFloat(document.getElementById('inputTaxes').value) || 0) / unitDivider;
+
+            appState.manualInputUnits = {
+                ...(appState.manualInputUnits || {}),
+                [target]: ManualEntry.normalizeDivider(unitDivider)
+            };
+            latestImportedDataCache = JSON.parse(JSON.stringify(appState));
 
             saveCustomDataCache(); // 変更をカスタムデータとして記憶
 
@@ -3138,6 +3224,19 @@
         function openReviewModal(result) {
             pendingExtraction = result;
 
+            // レビューで「キャンセル」した場合でも、数値調整の初期値として利用できるよう保持する
+            if (result.unit.multiplier !== null) {
+                const initialValues = Object.fromEntries(result.rows.map(row => [row.key, row.value]));
+                const initialPeriod = ManualEntry.periodFromReviewValues(initialValues, result.unit.multiplier);
+                const initialCompany = result.company || (result.meta ? result.meta.fileName.replace(/\.[^/.]+$/, '') : '');
+                rememberImportedPeriod(
+                    initialPeriod,
+                    'current',
+                    initialCompany,
+                    ManualEntry.dividerFromMultiplier(result.unit.multiplier)
+                );
+            }
+
             $('reviewCompanyName').value = result.company || (result.meta ? result.meta.fileName.replace(/\.[^/.]+$/, '') : '');
             setText('reviewPeriod', (result.period && result.period.label) || '未検出');
             setText('reviewSource', `${result.meta ? result.meta.method : '—'} / ${result.unit.name}`);
@@ -3271,29 +3370,8 @@
             if (!v.revenue) {
                 if (!confirm('売上高が入力されていません。このまま反映すると収益性の指標が算出できません。\n\n決算書の売上高を入力してから反映することを推奨します。このまま続けますか？')) return;
             }
-            const conv = k => (typeof v[k] === 'number' ? v[k] * m : 0);
-
             const target = $('reviewPeriodTarget').value;
-            const period = {
-                bs: {
-                    cashEquiv: Math.max(0, conv('quickAssets')),
-                    cash: typeof v.cash === 'number' ? Math.max(0, conv('cash')) : null,
-                    inventory: Math.max(0, conv('inventory')),
-                    otherCurrentAssets: Math.max(0, conv('otherCurrentAssets')),
-                    fixedAssets: Math.max(0, conv('fixedAssets')),
-                    currentLiabilities: Math.max(0, conv('currentLiabilities')),
-                    fixedLiabilities: Math.max(0, conv('fixedLiabilities')),
-                    equity: conv('equity')
-                },
-                pl: {
-                    revenue: Math.max(0, conv('revenue')),
-                    costOfSales: Math.max(0, conv('costOfSales')),
-                    sga: Math.max(0, conv('sga')),
-                    nonOpIncome: conv('nonOpIncome'),
-                    extraordinary: conv('extraordinary'),
-                    taxes: conv('taxes')
-                }
-            };
+            const period = ManualEntry.periodFromReviewValues(v, m);
 
             const name = ($('reviewCompanyName').value || '').trim();
             if (name) appState.companyName = name;
@@ -3309,6 +3387,13 @@
             } else {
                 appState.previousPeriod = period;
             }
+
+            const inputUnitDivider = ManualEntry.dividerFromMultiplier(m);
+            appState.manualInputUnits = {
+                ...(appState.manualInputUnits || {}),
+                [target]: inputUnitDivider
+            };
+            rememberImportedPeriod(period, target, name, inputUnitDivider);
 
             saveCustomDataCache();
             closeReviewModal();
