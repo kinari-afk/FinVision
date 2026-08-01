@@ -60,10 +60,11 @@ assert.match(html, /saveCurrentToMemory\(\)/);
 assert.doesNotMatch(html, /const pScale|const cScale|style\.height\s*=\s*`\$\{pScale/);
 assert.match(html, /id="bsDiagramContainer"[^>]*overflow-hidden/);
 
-// レポートの2ページ目に指定された4つの図を持つ。
-for (const id of ['pdfPage2', 'pdfBsStructure', 'pdfPlBlockStructure', 'pdfPlWaterfallStructure', 'pdfRadarImage']) {
+// レポートの2ページ目に指定された3つの財務構造図を持ち、レーダーは含めない。
+for (const id of ['pdfPage2', 'pdfBsStructure', 'pdfPlBlockStructure', 'pdfPlWaterfallStructure']) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} is missing from the report`);
 }
+assert.doesNotMatch(html, /id="pdfRadar|pdfRadarImage|pdfRadarCaption|pdfRadarFallback/);
 assert.match(html, /report-page-break/);
 
 console.log('UI memory/report regression passed.');
