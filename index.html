@@ -129,14 +129,24 @@
     <!-- Main Content Area -->
     <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 w-full">
 
-        <!-- Controls: Saved data, Input, Views -->
+        <!-- Controls: Samples, Saved data, Input, Views -->
         <div class="bg-white p-3 rounded-xl border border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shadow-sm">
-            <div class="flex flex-wrap items-center gap-2 min-w-0">
-                <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-box-archive"></i> 保存データ:</span>
-                <div id="memorySlots" class="flex flex-wrap items-center gap-1.5"></div>
-                <button onclick="saveCurrentToMemory()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-md font-bold transition shadow-sm whitespace-nowrap">
-                    <i class="fa-solid fa-floppy-disk"></i> 現在データを保存
-                </button>
+            <div class="flex flex-col gap-2 min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-flask"></i> サンプル:</span>
+                    <button onclick="loadFinancialSample('period3')" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-[10px] rounded-md font-bold transition whitespace-nowrap">KINARI 第3期</button>
+                    <button onclick="loadFinancialSample('period4')" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-[10px] rounded-md font-bold transition whitespace-nowrap">KINARI 第4期</button>
+                    <button onclick="loadFinancialSample('comparison')" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] rounded-md font-bold transition shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-code-compare"></i> KINARI 2期比較
+                    </button>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    <span class="text-xs font-bold text-slate-500 mr-1"><i class="fa-solid fa-box-archive"></i> 保存データ:</span>
+                    <div id="memorySlots" class="flex flex-wrap items-center gap-1.5"></div>
+                    <button onclick="saveCurrentToMemory()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-md font-bold transition shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-floppy-disk"></i> 現在データを保存
+                    </button>
+                </div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 mr-1">
@@ -1313,6 +1323,128 @@
             reuse: { name: 'リユース業(買取)', current: 180, equity: 45, opMargin: 12, roe: 15, turnover: 2.5 } // 粗利率が高く、在庫回転が早い
         };
 
+        /** 株式会社KINARIの確定決算を、円から百万円へ換算したサンプルデータ */
+        const FinancialSamples = (() => {
+            const clone = value => JSON.parse(JSON.stringify(value));
+            const blankPeriod = () => ({
+                bs: { cashEquiv: 0, cash: null, inventory: 0, otherCurrentAssets: 0, fixedAssets: 0, currentLiabilities: 0, fixedLiabilities: 0, equity: 0 },
+                pl: { revenue: 0, costOfSales: 0, sga: 0, operatingProfit: null, operatingProfitMode: 'calculated', nonOpIncome: 0, extraordinary: 0, taxes: 0 }
+            });
+
+            const samples = {
+                period3: {
+                    companyName: '株式会社KINARI',
+                    label: 'KINARI 第3期',
+                    periodLabel: '令和6年6月1日～令和7年5月31日',
+                    period: {
+                        bs: {
+                            cashEquiv: 15.440928,
+                            cash: 15.440928,
+                            inventory: 0.048137,
+                            otherCurrentAssets: 10.537681,
+                            fixedAssets: 0.06,
+                            currentLiabilities: 14.854942,
+                            fixedLiabilities: 4.408,
+                            equity: 6.823804
+                        },
+                        pl: {
+                            revenue: 57.642109,
+                            costOfSales: 0,
+                            sga: 52.953265,
+                            operatingProfit: 4.688844,
+                            operatingProfitMode: 'reported',
+                            nonOpIncome: 0.241047,
+                            extraordinary: 0,
+                            taxes: 1.0249
+                        }
+                    },
+                    sgaDetail: [
+                        { name: '役員報酬', value: 5.8 },
+                        { name: '給与・手当', value: 22.796283 },
+                        { name: '役員賞与', value: 1.5 },
+                        { name: '賞与', value: 6.076805 },
+                        { name: '法定福利費', value: 5.584059 },
+                        { name: '福利厚生費', value: 0.602933 },
+                        { name: '広告宣伝費', value: 0.023838 },
+                        { name: '支払手数料', value: 0.812414 },
+                        { name: '旅費交通費', value: 0.00827 },
+                        { name: '通信費', value: 0.861819 },
+                        { name: '接待交際費', value: 0.104369 },
+                        { name: '業務委託料', value: 0.9177 },
+                        { name: '地代・家賃', value: 0.86 },
+                        { name: '賃借料', value: 0.402157 },
+                        { name: '修繕費', value: 0.05126 },
+                        { name: '保険料', value: 2.43804 },
+                        { name: '租税公課', value: 0.0066 },
+                        { name: '水道光熱費', value: 0.161457 },
+                        { name: '事務用品費', value: 0.032479 },
+                        { name: '消耗品費', value: 1.333266 },
+                        { name: '車両費', value: 1.931795 },
+                        { name: '諸会費', value: 0.113 },
+                        { name: '寄付金', value: 0.001 },
+                        { name: '研修費', value: 0.003 },
+                        { name: '雑費', value: 0.530721 }
+                    ]
+                },
+                period4: {
+                    companyName: '株式会社KINARI',
+                    label: 'KINARI 第4期',
+                    periodLabel: '令和7年6月1日～令和8年5月31日',
+                    period: {
+                        bs: {
+                            cashEquiv: 40.535018,
+                            cash: 40.535018,
+                            inventory: 1.401006,
+                            otherCurrentAssets: 15.055555,
+                            fixedAssets: 6.992335,
+                            currentLiabilities: 26.944703,
+                            fixedLiabilities: 10.846,
+                            equity: 26.193211
+                        },
+                        pl: {
+                            revenue: 233.678616,
+                            costOfSales: 112.708702,
+                            sga: 95.068724,
+                            operatingProfit: 25.90119,
+                            operatingProfitMode: 'reported',
+                            nonOpIncome: 1.131117,
+                            extraordinary: 0,
+                            taxes: 7.6629
+                        }
+                    },
+                    sgaDetail: []
+                }
+            };
+
+            function get(key) {
+                return samples[key] ? clone(samples[key]) : null;
+            }
+
+            function stateFor(key) {
+                const isComparison = key === 'comparison';
+                const current = get(isComparison ? 'period4' : key);
+                if (!current) return null;
+                const previous = isComparison ? get('period3') : null;
+                return {
+                    viewMode: isComparison ? 'compare' : 'single',
+                    companyName: current.companyName,
+                    currentPeriod: clone(current.period),
+                    previousPeriod: previous ? clone(previous.period) : blankPeriod(),
+                    sgaDetail: current.sgaDetail.length ? clone(current.sgaDetail) : null,
+                    periodLabel: current.periodLabel,
+                    manualInputUnits: { current: 1000000, previous: isComparison ? 1000000 : 1 },
+                    importMeta: {
+                        fileName: isComparison ? 'KINARI 第3期・第4期サンプル' : `${current.label}サンプル`,
+                        method: 'サンプルデータ',
+                        periodLabel: current.periodLabel,
+                        target: 'current'
+                    }
+                };
+            }
+
+            return { get, stateFor };
+        })();
+
         /** 最大3件の保存データを安全に扱う純粋関数 */
         const DataMemory = (() => {
             const MAX_SLOTS = 3;
@@ -1482,6 +1614,21 @@
         function readMemorySlots() {
             try { return DataMemory.parse(localStorage.getItem(MEMORY_STORAGE_KEY)); }
             catch (_error) { return []; }
+        }
+
+        function loadFinancialSample(key) {
+            const nextState = FinancialSamples.stateFor(key);
+            if (!nextState) {
+                showToast('サンプルデータを読み込めませんでした。');
+                return;
+            }
+            appState = nextState;
+            customDataCache = JSON.parse(JSON.stringify(appState));
+            latestImportedDataCache = JSON.parse(JSON.stringify(appState));
+            resetSimulation();
+            switchGlobalView(appState.viewMode);
+            const label = key === 'comparison' ? 'KINARI 第3期・第4期（2期比較）' : FinancialSamples.get(key).label;
+            showToast(`「${label}」を読み込みました。`);
         }
 
         function writeMemorySlots(slots) {
