@@ -22,8 +22,12 @@ vm.runInNewContext(extractModule('ReportMetrics'), context, { filename: 'index.h
 const period3 = context.FinancialSamples.get('period3').period;
 const period4 = context.FinancialSamples.get('period4').period;
 const comparison = context.ReportMetrics.compare(period4, period3);
+const blankSummary = context.ReportMetrics.summary({ bs: {}, pl: {} });
 
 assert.equal(context.ReportMetrics.operatingProfit({ revenue: 10, costOfSales: 3, sga: 2, operatingProfit: null, operatingProfitMode: 'reported' }), 5);
+assert.equal(context.ReportMetrics.hasData(blankSummary), false);
+assert.equal(context.ReportMetrics.hasData(comparison.previous), true);
+assert.equal(context.ReportMetrics.hasData(comparison.current), true);
 
 assert.ok(Math.abs(comparison.previous.totalAssets - 26.086746) < 1e-9);
 assert.ok(Math.abs(comparison.current.totalAssets - 63.983914) < 1e-9);
@@ -41,5 +45,9 @@ assert.match(html, /id="pdfReportModeLabel"/);
 assert.match(html, /id="pdfBsHeader"/);
 assert.match(html, /id="pdfPlHeader"/);
 assert.match(html, /renderPdfVisualPage\(comparison/);
+assert.match(html, /id="pdfPage1"/);
+assert.match(html, /!ReportMetrics\.hasData\(comparison\.current\)/);
+assert.match(html, /!ReportMetrics\.hasData\(comparison\.previous\)/);
+assert.match(html, /pagebreak:\s*\{[^}]*before:\s*'#pdfPage2'/s);
 
 console.log('Two-period report regression passed.');

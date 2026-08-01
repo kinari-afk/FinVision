@@ -96,7 +96,11 @@
         .report-page-break {
             break-before: page;
             page-break-before: always;
-            padding-top: 2px;
+            margin-top: 0 !important;
+        }
+        .report-export-page {
+            box-sizing: border-box;
+            width: 100%;
         }
         .report-avoid-break {
             break-inside: avoid;
@@ -1069,7 +1073,8 @@
             <p class="text-xs text-slate-500">※以下の内容でA4フォーマットの財務レポートPDFを自動生成します。</p>
 
             <!-- Printable Report Document Render Area -->
-            <div id="pdfReportContent" class="bg-white p-8 border border-slate-200 rounded-xl space-y-6 text-slate-800 text-xs">
+            <div id="pdfReportContent" class="bg-white border border-slate-200 rounded-xl overflow-hidden text-slate-800 text-xs">
+                <section id="pdfPage1" class="report-export-page p-8 space-y-5 text-slate-800">
                 <!-- Report Header -->
                 <div class="border-b-2 border-indigo-900 pb-4 flex justify-between items-end">
                     <div>
@@ -1185,9 +1190,10 @@
                 <div class="text-right text-[10px] text-slate-400 pt-2 border-t border-slate-200">
                     FinVision Financial Visual Analyzer | Auto Generated Analysis Report
                 </div>
+                </section>
 
                 <!-- Page 2: Financial structures -->
-                <div id="pdfPage2" class="report-page-break space-y-4 text-slate-800">
+                <section id="pdfPage2" class="report-export-page report-page-break p-8 space-y-4 text-slate-800">
                     <div class="border-b-2 border-indigo-900 pb-3 flex justify-between items-end">
                         <div>
                             <div class="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-1">FinVision Financial Analysis Report</div>
@@ -1215,7 +1221,7 @@
                     <div class="text-right text-[10px] text-slate-400 pt-2 border-t border-slate-200">
                         FinVision Financial Visual Analyzer | Page 2
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     </div>
@@ -1562,7 +1568,22 @@
                 };
             }
 
-            return { operatingProfit, summary, delta, compare };
+            function hasData(summaryData) {
+                const data = summaryData || {};
+                const bs = data.bs || {};
+                const pl = data.pl || {};
+                return [
+                    data.totalAssets,
+                    data.liabilities,
+                    data.operatingProfit,
+                    bs.equity,
+                    pl.revenue,
+                    pl.costOfSales,
+                    pl.sga
+                ].some(value => Math.abs(num(value)) > 1e-9);
+            }
+
+            return { operatingProfit, summary, delta, compare, hasData };
         })();
 
         const MEMORY_STORAGE_KEY = 'finvision.saved-data.v1';
@@ -4104,6 +4125,14 @@
         function exportPdfReport() {
             const isComparison = appState.viewMode === 'compare';
             const comparison = ReportMetrics.compare(appState.currentPeriod, appState.previousPeriod);
+            if (!ReportMetrics.hasData(comparison.current)) {
+                showToast('レポートに出力する決算データがありません。PDF・テキスト・保存データまたはサンプルを読み込んでください。');
+                return;
+            }
+            if (isComparison && !ReportMetrics.hasData(comparison.previous)) {
+                showToast('2期比較レポートには前期・当期の両方のデータが必要です。各期データを読み込んでください。');
+                return;
+            }
             const current = comparison.current;
             const previous = comparison.previous;
             const bs = current.bs;
@@ -4235,7 +4264,8 @@
                 filename: `FinVision_${appState.viewMode === 'compare' ? '2期比較' : '財務診断'}レポート_${cleanName}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, logging: false },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'], before: '#pdfPage2', avoid: '.report-avoid-break' }
             };
 
             if (typeof html2pdf !== 'undefined') {
